@@ -3,5 +3,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/For-The-Win-Catering/',
+  base: '/For-The-Win-Catering-Operation/',
+  build: {
+    outDir: 'docs',
+    emptyOutDir: true,
+  },
 });
