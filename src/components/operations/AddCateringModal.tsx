@@ -601,6 +601,9 @@ export function AddCateringModal({
           </div>
 
           <div className="ops-modal__footer">
+            <button type="button" className="ops-btn ops-btn--ghost" onClick={onClose}>
+              Cancel
+            </button>
             {mode === 'edit' ? (
               <button
                 type="button"
@@ -610,9 +613,6 @@ export function AddCateringModal({
                 Delete Catering
               </button>
             ) : null}
-            <button type="button" className="ops-btn ops-btn--ghost" onClick={onClose}>
-              Cancel
-            </button>
             <button type="submit" className="ops-btn ops-btn--primary">
               {mode === 'edit' ? 'Save Changes' : 'Save Catering'}
             </button>

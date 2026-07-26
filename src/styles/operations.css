@@ -789,7 +789,8 @@
 }
 
 .ops-modal__delete {
-  margin-right: auto;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
 }
 
 /* —— Form fields —— */
