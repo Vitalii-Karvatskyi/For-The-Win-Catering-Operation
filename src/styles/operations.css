@@ -788,6 +788,10 @@
   flex-shrink: 0;
 }
 
+.ops-modal__delete {
+  margin-right: auto;
+}
+
 /* —— Form fields —— */
 .ops-form-grid {
   display: grid;

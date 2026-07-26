@@ -9,7 +9,6 @@ import type {
   SupplyItem,
 } from '../types/cateringOperations';
 import { createEmptyMenuOrder } from './cateringCalculations';
-import { createAutomaticTasks } from './cateringTasks';
 import {
   applyAutoEquipmentQuantities,
   createId,
@@ -363,8 +362,6 @@ export function migrateCateringEvent(value: unknown): CateringEvent | null {
     preparationTasks = (value.preparationTasks as PreparationTask[]).map((task) => ({
       ...task,
     }));
-  } else {
-    preparationTasks = createAutomaticTasks(menuOrder);
   }
 
   const notes =

@@ -61,6 +61,19 @@ export function OperationsPage() {
     });
   }
 
+  function handleDeleteCatering(eventId: string) {
+    setEvents((current) => {
+      const next = current.filter((event) => event.id !== eventId);
+      saveCaterings(next);
+      return next;
+    });
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      next.delete(eventId);
+      return next;
+    });
+  }
+
   return (
     <div className="ops-page">
       <OperationsHeader
@@ -93,6 +106,7 @@ export function OperationsPage() {
         event={modal.open ? modal.event : null}
         onClose={() => setModal({ open: false })}
         onSave={handleSaveCatering}
+        onDelete={handleDeleteCatering}
       />
     </div>
   );

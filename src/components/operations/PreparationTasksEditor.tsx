@@ -56,21 +56,14 @@ export function PreparationTasksEditor({
           {tasks.map((task) => (
             <li key={task.id} className="ops-editor__item">
               <div className="ops-editor__task-row">
-                <span className="ops-editor__name">
-                  {task.name}
-                  {task.source === 'automatic' ? (
-                    <span className="ops-editor__auto">Auto</span>
-                  ) : null}
-                </span>
-                {task.source === 'custom' ? (
-                  <button
-                    type="button"
-                    className="ops-btn ops-btn--danger"
-                    onClick={() => removeTask(task.id)}
-                  >
-                    Remove
-                  </button>
-                ) : null}
+                <span className="ops-editor__name">{task.name}</span>
+                <button
+                  type="button"
+                  className="ops-btn ops-btn--danger"
+                  onClick={() => removeTask(task.id)}
+                >
+                  Remove
+                </button>
               </div>
               <input
                 type="text"

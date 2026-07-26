@@ -16,7 +16,6 @@ import {
   createStandardEquipment,
   createStandardProducts,
 } from '../../lib/cateringStandards';
-import { syncAutomaticTasks } from '../../lib/cateringTasks';
 import { isValidServiceWindow } from '../../lib/cateringTime';
 import { loadEmployees } from '../../lib/employeeStorage';
 import { AutomaticRequirements } from './AutomaticRequirements';
@@ -34,6 +33,7 @@ type CateringFormModalProps = {
   event?: CateringEvent | null;
   onClose: () => void;
   onSave: (event: CateringEvent) => void;
+  onDelete: (eventId: string) => void;
 };
 
 type FormValues = {
@@ -230,6 +230,7 @@ export function AddCateringModal({
   event = null,
   onClose,
   onSave,
+  onDelete,
 }: CateringFormModalProps) {
   const titleId = useId();
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -320,11 +321,6 @@ export function AddCateringModal({
     });
   }
 
-  function handleMenuChange(next: CateringMenuOrder) {
-    setMenuOrder(next);
-    setPreparationTasks((current) => syncAutomaticTasks(current, next));
-  }
-
   function handleEquipmentChange(next: SupplyItem[]) {
     setEquipment(applyAutoEquipmentQuantities(next));
   }
@@ -365,6 +361,17 @@ export function AddCateringModal({
     }
 
     onSave(cateringEvent);
+    onClose();
+  }
+
+  function handleDelete() {
+    if (
+      !editingId ||
+      !window.confirm(`Delete catering "${values.eventName}"? This cannot be undone.`)
+    ) {
+      return;
+    }
+    onDelete(editingId);
     onClose();
   }
 
@@ -536,7 +543,7 @@ export function AddCateringModal({
               open={openSections.menu}
               onToggle={() => toggleSection('menu')}
             >
-              <MenuOrderSection value={menuOrder} onChange={handleMenuChange} />
+              <MenuOrderSection value={menuOrder} onChange={setMenuOrder} />
             </CollapsibleFormSection>
 
             <CollapsibleFormSection
@@ -594,6 +601,15 @@ export function AddCateringModal({
           </div>
 
           <div className="ops-modal__footer">
+            {mode === 'edit' ? (
+              <button
+                type="button"
+                className="ops-btn ops-btn--danger ops-modal__delete"
+                onClick={handleDelete}
+              >
+                Delete Catering
+              </button>
+            ) : null}
             <button type="button" className="ops-btn ops-btn--ghost" onClick={onClose}>
               Cancel
             </button>
