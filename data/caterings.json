@@ -211,8 +211,8 @@
     "eventName": "Altadena Pop-Up",
     "eventDate": "2026-08-01",
     "setupTime": "",
-    "serviceStartTime": "",
-    "serviceEndTime": "",
+    "serviceStartTime": "15:00",
+    "serviceEndTime": "20:00",
     "address": "2311 Lincoln Ave, Altadena, CA",
     "guestCount": 0,
     "status": "planning",
@@ -255,7 +255,7 @@
         "id": "altadena-meat",
         "name": "Meat",
         "quantity": 3,
-        "unit": "cases"
+        "unit": "containers"
       },
       {
         "id": "altadena-fries",

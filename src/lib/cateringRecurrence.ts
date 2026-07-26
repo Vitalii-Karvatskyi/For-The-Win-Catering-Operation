@@ -1,6 +1,5 @@
 import type { CateringEvent, RecurrenceRule } from '../types/cateringOperations';
 
-const WEEKS_AHEAD = 12;
 const ALTADENA_TEMPLATE_ID = 'altadena-popup-weekly-template';
 
 export function parseLocalDateKey(dateKey: string): {
@@ -62,36 +61,59 @@ function isValidRecurrence(rule: RecurrenceRule): boolean {
   );
 }
 
-/**
- * Upcoming weekly dates from today through today + 12 weeks,
- * not before recurrence.startDate, matching dayOfWeek / interval.
- */
-export function listRecurringDateKeys(
-  rule: RecurrenceRule,
+function parseServiceEndLocal(
+  eventDate: string,
+  serviceEndTime: string,
+): Date {
+  const end = serviceEndTime.trim() || '23:59';
+  const match = /^(\d{1,2}):(\d{2})$/.exec(end);
+  const hours = match ? Number(match[1]) : 23;
+  const minutes = match ? Number(match[2]) : 59;
+  const { year, month, day } = parseLocalDateKey(eventDate);
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}
+
+/** True when the occurrence date/time is already past locally. */
+export function hasOccurrenceEnded(
+  eventDate: string,
+  serviceEndTime: string,
   referenceDate: Date = new Date(),
-): string[] {
+): boolean {
+  const todayKey = getLocalTodayKey(referenceDate);
+  if (eventDate < todayKey) {
+    return true;
+  }
+  if (eventDate > todayKey) {
+    return false;
+  }
+  return referenceDate.getTime() > parseServiceEndLocal(eventDate, serviceEndTime).getTime();
+}
+
+/**
+ * Next matching weekday on/after `fromDateKey`, aligned to interval from startDate.
+ */
+function firstMatchingDateOnOrAfter(
+  rule: RecurrenceRule,
+  fromDateKey: string,
+): string | null {
   if (!isValidRecurrence(rule)) {
-    return [];
+    return null;
   }
 
-  const todayKey = getLocalTodayKey(referenceDate);
-  const windowEndKey = addLocalDays(todayKey, WEEKS_AHEAD * 7);
   const cursorStart =
-    rule.startDate > todayKey ? rule.startDate : todayKey;
-
+    rule.startDate > fromDateKey ? rule.startDate : fromDateKey;
   let cursor = localDateFromKey(cursorStart);
   const targetDow = rule.dayOfWeek;
 
-  // Move forward to the first matching weekday on/after cursorStart.
   while (cursor.getDay() !== targetDow) {
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  // Align to interval weeks from startDate's first matching weekday.
   const startAnchor = localDateFromKey(rule.startDate);
   while (startAnchor.getDay() !== targetDow) {
     startAnchor.setDate(startAnchor.getDate() + 1);
   }
+
   const msPerDay = 24 * 60 * 60 * 1000;
   const daysFromAnchor = Math.round(
     (cursor.getTime() - startAnchor.getTime()) / msPerDay,
@@ -102,21 +124,54 @@ export function listRecurringDateKeys(
     cursor.setDate(cursor.getDate() + (rule.interval - remainder) * 7);
   }
 
-  const dates: string[] = [];
-  while (true) {
-    const key = toLocalDateKey(cursor);
-    if (key > windowEndKey) {
-      break;
-    }
-    if (key >= rule.startDate && key >= todayKey) {
-      dates.push(key);
-    }
-    cursor.setDate(cursor.getDate() + rule.interval * 7);
+  const key = toLocalDateKey(cursor);
+  if (key < rule.startDate) {
+    return null;
   }
-
-  return dates;
+  return key;
 }
 
+/**
+ * Single nearest upcoming occurrence date for a weekly rule.
+ * If today matches and service has not ended, returns today; otherwise the next match.
+ */
+export function findNearestRecurringDateKey(
+  rule: RecurrenceRule,
+  serviceEndTime: string,
+  referenceDate: Date = new Date(),
+): string | null {
+  const todayKey = getLocalTodayKey(referenceDate);
+  let candidate = firstMatchingDateOnOrAfter(rule, todayKey);
+  if (!candidate) {
+    return null;
+  }
+
+  if (
+    candidate === todayKey &&
+    hasOccurrenceEnded(candidate, serviceEndTime, referenceDate)
+  ) {
+    candidate = firstMatchingDateOnOrAfter(rule, addLocalDays(todayKey, 1));
+  }
+
+  return candidate;
+}
+
+function cloneOccurrenceFromTemplate(
+  template: CateringEvent,
+  dateKey: string,
+): CateringEvent {
+  const clone = structuredClone(template);
+  clone.id = buildOccurrenceId(template, dateKey);
+  clone.eventDate = dateKey;
+  clone.sourceTemplateId = template.id;
+  delete clone.isRecurringTemplate;
+  return clone;
+}
+
+/**
+ * Generate dashboard occurrences for a template.
+ * Only the nearest upcoming occurrence is returned (not a long future list).
+ */
 export function generateRecurringOccurrences(
   template: CateringEvent,
   referenceDate: Date = new Date(),
@@ -125,20 +180,16 @@ export function generateRecurringOccurrences(
     return [];
   }
 
-  return listRecurringDateKeys(template.recurrence, referenceDate).map(
-    (dateKey) => {
-      const occurrence: CateringEvent = {
-        ...structuredClone(template),
-        id: buildOccurrenceId(template, dateKey),
-        eventDate: dateKey,
-        isRecurringTemplate: false,
-        sourceTemplateId: template.id,
-      };
-      // Occurrences are virtual — never treat as templates.
-      delete occurrence.isRecurringTemplate;
-      return occurrence;
-    },
+  const dateKey = findNearestRecurringDateKey(
+    template.recurrence,
+    template.serviceEndTime,
+    referenceDate,
   );
+  if (!dateKey) {
+    return [];
+  }
+
+  return [cloneOccurrenceFromTemplate(template, dateKey)];
 }
 
 function normalizeName(value: string): string {
@@ -148,7 +199,7 @@ function normalizeName(value: string): string {
 /**
  * Expand stored events for the dashboard:
  * - hide recurring templates
- * - inject generated occurrences
+ * - inject the nearest generated occurrence per template
  * - drop one-off events that collide with a generated occurrence
  */
 export function expandCateringEvents(
@@ -200,7 +251,6 @@ export function sanitizeEventForStorage(event: CateringEvent): CateringEvent {
   const next = structuredClone(event);
   delete next.sourceTemplateId;
   if (next.isRecurringTemplate) {
-    // Keep template marker and recurrence for persistence.
     return next;
   }
   delete next.isRecurringTemplate;

@@ -469,11 +469,17 @@ export function migrateCateringEvent(value: unknown): CateringEvent | null {
         unit: string;
         notes?: string;
       };
+      const unit =
+        requirement.id === 'altadena-meat' ||
+        (normalizeItemName(requirement.name) === 'meat' &&
+          normalizeItemName(requirement.unit) === 'cases')
+          ? 'containers'
+          : requirement.unit;
       return {
         id: requirement.id,
         name: requirement.name,
         quantity: requirement.quantity,
-        unit: requirement.unit,
+        unit,
         ...(requirement.notes ? { notes: requirement.notes } : {}),
       };
     });
@@ -491,6 +497,27 @@ export function saveCaterings(_events: CateringEvent[]): void {
   // No-op.
 }
 
+function finalizeCateringEvent(event: CateringEvent): CateringEvent {
+  const next = structuredClone(event);
+  next.products = ensureStandardProducts(next.products);
+  next.equipment = applyAutoEquipmentQuantities(
+    ensureStandardEquipment(next.equipment),
+  );
+  if (next.manualRequirements) {
+    next.manualRequirements = next.manualRequirements.map((item) => {
+      if (
+        item.id === 'altadena-meat' ||
+        (normalizeItemName(item.name) === 'meat' &&
+          normalizeItemName(item.unit) === 'cases')
+      ) {
+        return { ...item, unit: 'containers' };
+      }
+      return item;
+    });
+  }
+  return next;
+}
+
 /**
  * Normalize a parsed JSON value into catering events.
  * Throws when the payload is not a usable array.
@@ -500,19 +527,21 @@ export function normalizeCateringsPayload(parsed: unknown): CateringEvent[] {
     throw new Error('Shared caterings file is not a valid array.');
   }
 
+  let events: CateringEvent[];
   if (parsed.every(isCateringEvent)) {
-    return parsed.map((event) => structuredClone(event));
+    events = parsed.map((event) => structuredClone(event));
+  } else {
+    const migrated = parsed
+      .map(migrateCateringEvent)
+      .filter((event): event is CateringEvent => event !== null);
+
+    if (migrated.length === 0 && parsed.length > 0) {
+      throw new Error('Shared caterings file is corrupted and cannot be read.');
+    }
+    events = migrated;
   }
 
-  const migrated = parsed
-    .map(migrateCateringEvent)
-    .filter((event): event is CateringEvent => event !== null);
-
-  if (migrated.length === 0 && parsed.length > 0) {
-    throw new Error('Shared caterings file is corrupted and cannot be read.');
-  }
-
-  return migrated;
+  return events.map(finalizeCateringEvent);
 }
 
 /** @deprecated Shared GitHub storage is the primary catering source. */
