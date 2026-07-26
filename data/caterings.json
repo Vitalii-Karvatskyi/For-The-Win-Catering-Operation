@@ -9,7 +9,11 @@
     "address": "2314 something",
     "guestCount": 1000,
     "status": "planning",
-    "assignedEmployees": [],
+    "assignedEmployees": [
+      "Vitalii",
+      "Felix",
+      "Marisol"
+    ],
     "menuOrder": {
       "cheeseburger": 1000,
       "doubleCheeseburger": 0,
