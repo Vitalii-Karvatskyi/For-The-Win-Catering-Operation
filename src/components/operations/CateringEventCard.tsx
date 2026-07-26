@@ -67,7 +67,12 @@ export function CateringEventCard({
         </div>
 
         <div className="ops-card__main">
-          <h3 className="ops-card__title">{event.eventName}</h3>
+          <h3 className="ops-card__title">
+            {event.eventName}
+            {event.sourceTemplateId || event.isRecurringTemplate ? (
+              <span className="ops-card__weekly">Weekly</span>
+            ) : null}
+          </h3>
           <p className="ops-card__address">{event.address}</p>
         </div>
 
@@ -84,7 +89,9 @@ export function CateringEventCard({
           </div>
           <div className="ops-card__meta-item">
             <span className="ops-card__meta-label">Guests</span>
-            <span className="ops-card__meta-value">{event.guestCount}</span>
+            <span className="ops-card__meta-value">
+              {event.guestCount > 0 ? event.guestCount : '—'}
+            </span>
           </div>
           <div className="ops-card__meta-item">
             <span className="ops-card__meta-label">Team</span>

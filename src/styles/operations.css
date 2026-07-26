@@ -424,6 +424,20 @@
   word-break: break-word;
 }
 
+.ops-card__weekly {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.12rem 0.45rem;
+  vertical-align: middle;
+  border: 1px solid var(--ftw-brand);
+  color: var(--ftw-brand);
+  font-family: var(--ftw-font-nav);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .ops-card__address {
   margin: 0.35rem 0 0;
   font-size: 0.95rem;

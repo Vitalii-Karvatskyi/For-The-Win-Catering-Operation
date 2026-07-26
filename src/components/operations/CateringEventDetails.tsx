@@ -43,6 +43,8 @@ export function CateringEventDetails({
     menu.fries > 0;
   const hasOpenItems = menu.openItems.length > 0;
   const requirements = calculateCateringRequirements(menu);
+  const manualRequirements = event.manualRequirements ?? [];
+  const hasManualRequirements = manualRequirements.length > 0;
   const hasNotes = Boolean(event.notes?.trim());
   const hasEmployees = event.assignedEmployees.length > 0;
 
@@ -85,7 +87,19 @@ export function CateringEventDetails({
         )}
       </section>
 
-      {requirements.items.length > 0 ? (
+      {hasManualRequirements ? (
+        <section className="ops-details__section">
+          <h3 className="ops-details__heading">Purchasing & Preparation</h3>
+          <ul className="ops-details__menu">
+            {manualRequirements.map((item) => (
+              <li key={item.id}>
+                {item.name} — {item.quantity} {item.unit}
+                {item.notes ? `, ${item.notes}` : ''}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : requirements.items.length > 0 ? (
         <section className="ops-details__section">
           <h3 className="ops-details__heading">Purchasing & Preparation</h3>
           <ul className="ops-details__menu">

@@ -46,6 +46,22 @@ export type CateringMenuOrder = {
   openItems: OpenMenuItem[];
 };
 
+/** 0 = Sunday … 6 = Saturday (JavaScript getDay()). */
+export type RecurrenceRule = {
+  frequency: 'weekly';
+  interval: number;
+  dayOfWeek: number;
+  startDate: string;
+};
+
+export type ManualRequirement = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  notes?: string;
+};
+
 export type CateringEvent = {
   id: string;
   eventName: string;
@@ -63,6 +79,11 @@ export type CateringEvent = {
   equipment: SupplyItem[];
   preparationTasks: PreparationTask[];
   documents: DocumentTask[];
+  recurrence?: RecurrenceRule;
+  isRecurringTemplate?: boolean;
+  manualRequirements?: ManualRequirement[];
+  /** Set only on in-memory generated occurrences (not persisted). */
+  sourceTemplateId?: string;
 };
 
 export type Employee = {

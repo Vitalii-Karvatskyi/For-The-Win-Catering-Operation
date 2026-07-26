@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CateringEvent,
   CateringFormMode,
@@ -8,6 +8,11 @@ import {
   getOperationsSummary,
   groupEventsByDate,
 } from '../../lib/cateringOperations';
+import {
+  expandCateringEvents,
+  isRecurringOccurrence,
+  resolveSeriesTemplate,
+} from '../../lib/cateringRecurrence';
 import {
   addEmployee as addEmployeeRemote,
   clearGitHubToken,
@@ -45,12 +50,15 @@ type ConnectionPhase =
 export function OperationsPage() {
   const [phase, setPhase] = useState<ConnectionPhase>('checking');
   const [statusLabel, setStatusLabel] = useState('Connecting...');
-  const [events, setEvents] = useState<CateringEvent[]>([]);
+  const [storedEvents, setStoredEvents] = useState<CateringEvent[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
   const [modal, setModal] = useState<ModalState>({ open: false });
+  const [seriesPromptEvent, setSeriesPromptEvent] = useState<CateringEvent | null>(
+    null,
+  );
   const [connectOpen, setConnectOpen] = useState(false);
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -62,15 +70,21 @@ export function OperationsPage() {
   );
   const bootstrapped = useRef(false);
 
+  const displayEvents = useMemo(
+    () => expandCateringEvents(storedEvents),
+    [storedEvents],
+  );
+
   const handleAuthFailure = useCallback((message?: string) => {
     clearGitHubToken();
-    setEvents([]);
+    setStoredEvents([]);
     setEmployees([]);
     setPhase('needs-token');
     setStatusLabel('Unable to connect to GitHub.');
     setConnectOpen(true);
     setConnectError(message ?? 'GitHub access expired. Enter a new token.');
     setBannerMessage(null);
+    setSeriesPromptEvent(null);
   }, []);
 
   const loadSharedData = useCallback(async () => {
@@ -83,7 +97,7 @@ export function OperationsPage() {
         loadCaterings(),
         loadEmployees(),
       ]);
-      setEvents(nextEvents);
+      setStoredEvents(nextEvents);
       setEmployees(nextEmployees);
       setPhase('ready');
       setStatusLabel('GitHub Connected');
@@ -180,13 +194,14 @@ export function OperationsPage() {
 
   function handleDisconnect() {
     clearGitHubToken();
-    setEvents([]);
+    setStoredEvents([]);
     setEmployees([]);
     setPhase('needs-token');
     setStatusLabel('Unable to connect to GitHub.');
     setConnectOpen(true);
     setConnectError(null);
     setBannerMessage(null);
+    setSeriesPromptEvent(null);
     setModal({ open: false });
   }
 
@@ -202,13 +217,34 @@ export function OperationsPage() {
     await bootstrap();
   }
 
+  function handleRequestEdit(event: CateringEvent) {
+    if (isRecurringOccurrence(event) || event.isRecurringTemplate) {
+      setSeriesPromptEvent(event);
+      return;
+    }
+    setModal({ open: true, mode: 'edit', event });
+  }
+
+  function handleEditEntireSeries() {
+    if (!seriesPromptEvent) {
+      return;
+    }
+    const template = resolveSeriesTemplate(storedEvents, seriesPromptEvent);
+    setSeriesPromptEvent(null);
+    if (!template) {
+      setBannerMessage('Unable to open the recurring series template.');
+      return;
+    }
+    setModal({ open: true, mode: 'edit', event: template });
+  }
+
   async function handleSaveCatering(event: CateringEvent): Promise<void> {
-    const isNew = !events.some((item) => item.id === event.id);
+    const isNew = !storedEvents.some((item) => item.id === event.id);
     try {
       const next = isNew
         ? await createCatering(event)
         : await updateCatering(event);
-      setEvents(next);
+      setStoredEvents(next);
       setBannerMessage('Catering saved.');
     } catch (error) {
       if (error instanceof GitHubApiError && error.code === 'unauthorized') {
@@ -221,11 +257,11 @@ export function OperationsPage() {
   }
 
   async function handleDeleteCatering(eventId: string): Promise<void> {
-    const existing = events.find((event) => event.id === eventId);
+    const existing = storedEvents.find((event) => event.id === eventId);
     const eventName = existing?.eventName ?? 'Unknown';
     try {
       const next = await deleteCatering(eventId, eventName);
-      setEvents(next);
+      setStoredEvents(next);
       setExpandedIds((current) => {
         const nextSet = new Set(current);
         nextSet.delete(eventId);
@@ -251,16 +287,21 @@ export function OperationsPage() {
       return;
     }
 
-    const currentEvent = events.find((event) => event.id === eventId);
+    const currentEvent = displayEvents.find((event) => event.id === eventId);
     const task = currentEvent?.preparationTasks.find((item) => item.id === taskId);
     if (!currentEvent || !task) {
       return;
     }
 
+    // Recurring occurrences are virtual — do not persist per-date checklist state.
+    if (isRecurringOccurrence(currentEvent)) {
+      return;
+    }
+
     const nextCompleted = !task.completed;
-    const previous = events;
+    const previous = storedEvents;
     setSavingChecklistIds((current) => new Set(current).add(busyKey));
-    setEvents((current) =>
+    setStoredEvents((current) =>
       current.map((event) =>
         event.id === eventId
           ? {
@@ -275,9 +316,9 @@ export function OperationsPage() {
 
     try {
       const next = await updatePreparationTask(eventId, taskId, nextCompleted);
-      setEvents(next);
+      setStoredEvents(next);
     } catch (error) {
-      setEvents(previous);
+      setStoredEvents(previous);
       if (error instanceof GitHubApiError && error.code === 'unauthorized') {
         handleAuthFailure('GitHub access expired. Enter a new token.');
       } else {
@@ -301,16 +342,20 @@ export function OperationsPage() {
       return;
     }
 
-    const currentEvent = events.find((event) => event.id === eventId);
+    const currentEvent = displayEvents.find((event) => event.id === eventId);
     const document = currentEvent?.documents.find((item) => item.id === documentId);
     if (!currentEvent || !document) {
       return;
     }
 
+    if (isRecurringOccurrence(currentEvent)) {
+      return;
+    }
+
     const nextCompleted = !document.completed;
-    const previous = events;
+    const previous = storedEvents;
     setSavingChecklistIds((current) => new Set(current).add(busyKey));
-    setEvents((current) =>
+    setStoredEvents((current) =>
       current.map((event) =>
         event.id === eventId
           ? {
@@ -327,9 +372,9 @@ export function OperationsPage() {
 
     try {
       const next = await updateDocument(eventId, documentId, nextCompleted);
-      setEvents(next);
+      setStoredEvents(next);
     } catch (error) {
-      setEvents(previous);
+      setStoredEvents(previous);
       if (error instanceof GitHubApiError && error.code === 'unauthorized') {
         handleAuthFailure('GitHub access expired. Enter a new token.');
       } else {
@@ -369,8 +414,8 @@ export function OperationsPage() {
     });
   }
 
-  const summary = getOperationsSummary(events);
-  const groups = groupEventsByDate(events);
+  const summary = getOperationsSummary(displayEvents);
+  const groups = groupEventsByDate(displayEvents);
   const connected = phase === 'ready';
   const showDashboard = phase === 'ready';
   const showLoading =
@@ -443,9 +488,7 @@ export function OperationsPage() {
                   expandedIds={expandedIds}
                   savingChecklistIds={savingChecklistIds}
                   onToggle={handleToggle}
-                  onEdit={(event) =>
-                    setModal({ open: true, mode: 'edit', event })
-                  }
+                  onEdit={handleRequestEdit}
                   onTogglePreparationTask={handleTogglePreparationTask}
                   onToggleDocument={handleToggleDocument}
                 />
@@ -454,6 +497,46 @@ export function OperationsPage() {
           ) : null}
         </div>
       </main>
+
+      {seriesPromptEvent ? (
+        <div className="ops-modal ops-modal--blocking" role="presentation">
+          <div className="ops-modal__backdrop" aria-hidden="true" />
+          <div
+            className="ops-modal__dialog ops-modal__dialog--connect"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="recurring-series-title"
+          >
+            <div className="ops-modal__header">
+              <h2 id="recurring-series-title" className="ops-modal__title">
+                Recurring Event
+              </h2>
+            </div>
+            <div className="ops-modal__body">
+              <p className="ops-connect__description">
+                This is a recurring weekly event. Changes will apply to all future
+                Altadena Pop-Up events.
+              </p>
+            </div>
+            <div className="ops-modal__footer">
+              <button
+                type="button"
+                className="ops-btn ops-btn--ghost"
+                onClick={() => setSeriesPromptEvent(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ops-btn ops-btn--primary"
+                onClick={handleEditEntireSeries}
+              >
+                Edit Entire Series
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ConnectGitHubModal
         open={connectOpen}

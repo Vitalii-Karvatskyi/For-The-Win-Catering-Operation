@@ -4,6 +4,7 @@ import {
   buildEmployeeAddition,
   normalizeEmployeesPayload,
 } from '../lib/employeeStorage';
+import { sanitizeEventForStorage } from '../lib/cateringRecurrence';
 
 export const GITHUB_TOKEN_STORAGE_KEY = 'ftw-github-token';
 
@@ -382,17 +383,18 @@ export async function createCatering(
   event: CateringEvent,
   token?: string,
 ): Promise<CateringEvent[]> {
+  const toStore = sanitizeEventForStorage(event);
   return mutateJsonFile(
     CATERINGS_PATH,
-    () => `Add catering: ${event.eventName}`,
+    () => `Add catering: ${toStore.eventName}`,
     parseCaterings,
     (current) => {
-      if (current.some((item) => item.id === event.id)) {
+      if (current.some((item) => item.id === toStore.id)) {
         return current.map((item) =>
-          item.id === event.id ? structuredClone(event) : item,
+          item.id === toStore.id ? structuredClone(toStore) : item,
         );
       }
-      return [...current, structuredClone(event)];
+      return [...current, structuredClone(toStore)];
     },
     token,
   );
@@ -402,12 +404,13 @@ export async function updateCatering(
   event: CateringEvent,
   token?: string,
 ): Promise<CateringEvent[]> {
+  const toStore = sanitizeEventForStorage(event);
   return mutateJsonFile(
     CATERINGS_PATH,
-    () => `Update catering: ${event.eventName}`,
+    () => `Update catering: ${toStore.eventName}`,
     parseCaterings,
     (current) => {
-      const index = current.findIndex((item) => item.id === event.id);
+      const index = current.findIndex((item) => item.id === toStore.id);
       if (index === -1) {
         throw new GitHubApiError(
           'Catering event was not found in shared data.',
@@ -416,7 +419,7 @@ export async function updateCatering(
         );
       }
       const next = [...current];
-      next[index] = structuredClone(event);
+      next[index] = structuredClone(toStore);
       return next;
     },
     token,

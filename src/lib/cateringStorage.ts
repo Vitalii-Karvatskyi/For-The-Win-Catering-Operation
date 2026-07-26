@@ -126,10 +126,61 @@ function isDocumentTask(value: unknown): value is DocumentTask {
   );
 }
 
+function isManualRequirement(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.quantity === 'number' &&
+    Number.isFinite(value.quantity) &&
+    typeof value.unit === 'string' &&
+    isOptionalString(value.notes)
+  );
+}
+
+function isRecurrenceRule(
+  value: unknown,
+): value is {
+  frequency: 'weekly';
+  interval: number;
+  dayOfWeek: number;
+  startDate: string;
+} {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    value.frequency === 'weekly' &&
+    typeof value.interval === 'number' &&
+    Number.isInteger(value.interval) &&
+    value.interval >= 1 &&
+    typeof value.dayOfWeek === 'number' &&
+    Number.isInteger(value.dayOfWeek) &&
+    value.dayOfWeek >= 0 &&
+    value.dayOfWeek <= 6 &&
+    typeof value.startDate === 'string'
+  );
+}
+
 function isCateringEvent(value: unknown): value is CateringEvent {
   if (!isRecord(value)) {
     return false;
   }
+
+  const recurrenceOk =
+    value.recurrence === undefined || isRecurrenceRule(value.recurrence);
+  const templateFlagOk =
+    value.isRecurringTemplate === undefined ||
+    typeof value.isRecurringTemplate === 'boolean';
+  const manualOk =
+    value.manualRequirements === undefined ||
+    (Array.isArray(value.manualRequirements) &&
+      value.manualRequirements.every(isManualRequirement));
+  const sourceOk =
+    value.sourceTemplateId === undefined ||
+    typeof value.sourceTemplateId === 'string';
 
   return (
     typeof value.id === 'string' &&
@@ -155,6 +206,10 @@ function isCateringEvent(value: unknown): value is CateringEvent {
     Array.isArray(value.documents) &&
     value.documents.every(isDocumentTask) &&
     isOptionalString(value.notes) &&
+    recurrenceOk &&
+    templateFlagOk &&
+    manualOk &&
+    sourceOk &&
     !('checklist' in value)
   );
 }
@@ -388,6 +443,40 @@ export function migrateCateringEvent(value: unknown): CateringEvent | null {
 
   if (notes && notes.trim()) {
     event.notes = notes.trim();
+  }
+
+  if (isRecurrenceRule(value.recurrence)) {
+    const recurrence = value.recurrence;
+    event.recurrence = {
+      frequency: 'weekly',
+      interval: recurrence.interval,
+      dayOfWeek: recurrence.dayOfWeek,
+      startDate: recurrence.startDate,
+    };
+  }
+  if (value.isRecurringTemplate === true) {
+    event.isRecurringTemplate = true;
+  }
+  if (
+    Array.isArray(value.manualRequirements) &&
+    value.manualRequirements.every(isManualRequirement)
+  ) {
+    event.manualRequirements = value.manualRequirements.map((item) => {
+      const requirement = item as {
+        id: string;
+        name: string;
+        quantity: number;
+        unit: string;
+        notes?: string;
+      };
+      return {
+        id: requirement.id,
+        name: requirement.name,
+        quantity: requirement.quantity,
+        unit: requirement.unit,
+        ...(requirement.notes ? { notes: requirement.notes } : {}),
+      };
+    });
   }
 
   return event;

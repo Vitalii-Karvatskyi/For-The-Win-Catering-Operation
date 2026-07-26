@@ -88,13 +88,16 @@ function eventToForm(event: CateringEvent): FormValues {
     serviceStartTime: event.serviceStartTime,
     serviceEndTime: event.serviceEndTime,
     address: event.address,
-    guestCount: String(event.guestCount),
+    guestCount: event.guestCount > 0 ? String(event.guestCount) : '',
     notes: event.notes ?? '',
     status: event.status,
   };
 }
 
-function validateForm(values: FormValues): FormErrors {
+function validateForm(
+  values: FormValues,
+  options?: { allowUnknownGuests?: boolean; allowEmptyTimes?: boolean },
+): FormErrors {
   const errors: FormErrors = {};
 
   if (!values.eventName.trim()) {
@@ -103,13 +106,13 @@ function validateForm(values: FormValues): FormErrors {
   if (!values.eventDate.trim()) {
     errors.eventDate = 'Event date is required.';
   }
-  if (!values.setupTime.trim()) {
+  if (!options?.allowEmptyTimes && !values.setupTime.trim()) {
     errors.setupTime = 'Setup time is required.';
   }
-  if (!values.serviceStartTime.trim()) {
+  if (!options?.allowEmptyTimes && !values.serviceStartTime.trim()) {
     errors.serviceStartTime = 'Service start is required.';
   }
-  if (!values.serviceEndTime.trim()) {
+  if (!options?.allowEmptyTimes && !values.serviceEndTime.trim()) {
     errors.serviceEndTime = 'Service end is required.';
   }
   if (!values.address.trim()) {
@@ -118,10 +121,14 @@ function validateForm(values: FormValues): FormErrors {
 
   const guestRaw = values.guestCount.trim();
   if (!guestRaw) {
-    errors.guestCount = 'Guest count is required.';
+    if (!options?.allowUnknownGuests) {
+      errors.guestCount = 'Guest count is required.';
+    }
   } else {
     const guestCount = Number(guestRaw);
-    if (!Number.isInteger(guestCount) || guestCount <= 0) {
+    if (!Number.isInteger(guestCount) || guestCount < 0) {
+      errors.guestCount = 'Guest count must be a whole number.';
+    } else if (!options?.allowUnknownGuests && guestCount <= 0) {
       errors.guestCount = 'Guest count must be a whole number greater than zero.';
     }
   }
@@ -339,13 +346,20 @@ export function AddCateringModal({
       return;
     }
 
-    const nextErrors = validateForm(values);
+    const editingRecurringSeries = Boolean(
+      mode === 'edit' && event?.isRecurringTemplate && event.recurrence,
+    );
+    const nextErrors = validateForm(values, {
+      allowUnknownGuests: editingRecurringSeries,
+      allowEmptyTimes: editingRecurringSeries,
+    });
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
     const notes = values.notes.trim();
+    const guestRaw = values.guestCount.trim();
     const cateringEvent: CateringEvent = {
       id: mode === 'edit' && editingId ? editingId : createCateringEventId(),
       eventName: values.eventName.trim(),
@@ -354,7 +368,7 @@ export function AddCateringModal({
       serviceStartTime: values.serviceStartTime,
       serviceEndTime: values.serviceEndTime,
       address: values.address.trim(),
-      guestCount: Number.parseInt(values.guestCount.trim(), 10),
+      guestCount: guestRaw ? Number.parseInt(guestRaw, 10) : 0,
       status: mode === 'create' ? 'planning' : values.status,
       assignedEmployees: selectedEmployees,
       menuOrder: sanitizeMenuOrder(menuOrder),
@@ -368,12 +382,31 @@ export function AddCateringModal({
       cateringEvent.notes = notes;
     }
 
+    if (mode === 'edit' && event) {
+      if (event.recurrence) {
+        cateringEvent.recurrence = structuredClone(event.recurrence);
+      }
+      if (event.isRecurringTemplate) {
+        cateringEvent.isRecurringTemplate = true;
+        // Keep series start aligned with the template event date when edited.
+        if (cateringEvent.recurrence) {
+          cateringEvent.recurrence = {
+            ...cateringEvent.recurrence,
+            startDate: cateringEvent.eventDate || cateringEvent.recurrence.startDate,
+          };
+        }
+      }
+      if (event.manualRequirements) {
+        cateringEvent.manualRequirements = structuredClone(event.manualRequirements);
+      }
+    }
+
     setSaving(true);
     setFormError(null);
     try {
       await onSave(cateringEvent);
       onClose();
-    } catch (error) {
+    } catch {
       setFormError('Save failed.');
     } finally {
       setSaving(false);

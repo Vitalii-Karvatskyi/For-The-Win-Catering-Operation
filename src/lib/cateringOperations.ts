@@ -109,8 +109,8 @@ export function isUpcomingEvent(event: CateringEvent): boolean {
 
 export function sortEventsByDateAndSetup(events: CateringEvent[]): CateringEvent[] {
   return [...events].sort((a, b) => {
-    const aTime = getEventDateTime(a.eventDate, a.setupTime).getTime();
-    const bTime = getEventDateTime(b.eventDate, b.setupTime).getTime();
+    const aTime = getEventDateTime(a.eventDate, a.setupTime || '12:00').getTime();
+    const bTime = getEventDateTime(b.eventDate, b.setupTime || '12:00').getTime();
     return aTime - bTime;
   });
 }
@@ -274,10 +274,16 @@ export function formatWeekday(eventDate: string): string {
 }
 
 export function formatTime(time: string): string {
+  if (!time.trim()) {
+    return '—';
+  }
   return formatTimeForDisplay(time);
 }
 
 export function formatTimeRange(startTime: string, endTime: string): string {
+  if (!startTime.trim() && !endTime.trim()) {
+    return '—';
+  }
   return `${formatTime(startTime)} – ${formatTime(endTime)}`;
 }
 

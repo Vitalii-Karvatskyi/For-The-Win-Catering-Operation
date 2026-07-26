@@ -28,7 +28,7 @@
         "quantity": 1
       },
       {
-        "id": "prod-bf91b2f7-aa5c-4d26-9c21-c9d2c357c691",
+        "id": "prod-bf91b2f7-e1fa-4d26-9c21-c9d2c357c691",
         "name": "Salt & pepper",
         "quantity": 1
       },
@@ -205,5 +205,75 @@
         "completed": true
       }
     ]
+  },
+  {
+    "id": "altadena-popup-weekly-template",
+    "eventName": "Altadena Pop-Up",
+    "eventDate": "2026-08-01",
+    "setupTime": "",
+    "serviceStartTime": "",
+    "serviceEndTime": "",
+    "address": "2311 Lincoln Ave, Altadena, CA",
+    "guestCount": 0,
+    "status": "planning",
+    "assignedEmployees": [],
+    "isRecurringTemplate": true,
+    "recurrence": {
+      "frequency": "weekly",
+      "interval": 1,
+      "dayOfWeek": 6,
+      "startDate": "2026-08-01"
+    },
+    "manualRequirements": [
+      {
+        "id": "altadena-sauce",
+        "name": "Sauce",
+        "quantity": 5,
+        "unit": "bottles"
+      },
+      {
+        "id": "altadena-grilled-onions",
+        "name": "Grilled onions",
+        "quantity": 1,
+        "unit": "container",
+        "notes": "7 L"
+      },
+      {
+        "id": "altadena-pickles",
+        "name": "Pickles",
+        "quantity": 1,
+        "unit": "container",
+        "notes": "7 L"
+      },
+      {
+        "id": "altadena-buns",
+        "name": "Buns",
+        "quantity": 4,
+        "unit": "boxes"
+      },
+      {
+        "id": "altadena-meat",
+        "name": "Meat",
+        "quantity": 3,
+        "unit": "cases"
+      },
+      {
+        "id": "altadena-fries",
+        "name": "Fries",
+        "quantity": 2,
+        "unit": "boxes"
+      }
+    ],
+    "menuOrder": {
+      "cheeseburger": 0,
+      "doubleCheeseburger": 0,
+      "veggieBurger": 0,
+      "fries": 0,
+      "openItems": []
+    },
+    "products": [],
+    "equipment": [],
+    "preparationTasks": [],
+    "documents": []
   }
 ]
