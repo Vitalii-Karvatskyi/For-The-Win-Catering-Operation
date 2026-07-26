@@ -15,17 +15,21 @@ import { CateringEventDetails } from './CateringEventDetails';
 type CateringEventCardProps = {
   event: CateringEvent;
   expanded: boolean;
+  savingChecklistIds: ReadonlySet<string>;
   onToggle: () => void;
   onEdit: () => void;
-  onUpdateEvent: (event: CateringEvent) => void;
+  onTogglePreparationTask: (eventId: string, taskId: string) => Promise<void>;
+  onToggleDocument: (eventId: string, documentId: string) => Promise<void>;
 };
 
 export function CateringEventCard({
   event,
   expanded,
+  savingChecklistIds,
   onToggle,
   onEdit,
-  onUpdateEvent,
+  onTogglePreparationTask,
+  onToggleDocument,
 }: CateringEventCardProps) {
   const total = getTotalTaskCount(event);
   const completed = getCompletedTaskCount(event);
@@ -121,7 +125,12 @@ export function CateringEventCard({
 
       {expanded ? (
         <div id={detailsId} className="ops-card__details">
-          <CateringEventDetails event={event} onUpdateEvent={onUpdateEvent} />
+          <CateringEventDetails
+            event={event}
+            savingChecklistIds={savingChecklistIds}
+            onTogglePreparationTask={onTogglePreparationTask}
+            onToggleDocument={onToggleDocument}
+          />
         </div>
       ) : null}
     </article>

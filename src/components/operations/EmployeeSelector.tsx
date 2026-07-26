@@ -1,23 +1,23 @@
 import { useState } from 'react';
 import type { Employee } from '../../types/cateringOperations';
-import { addEmployee } from '../../lib/employeeStorage';
 
 type EmployeeSelectorProps = {
   employees: Employee[];
   selectedNames: string[];
-  onEmployeesChange: (employees: Employee[]) => void;
   onSelectedNamesChange: (names: string[]) => void;
+  onAddEmployee: (name: string) => Promise<Employee>;
 };
 
 export function EmployeeSelector({
   employees,
   selectedNames,
-  onEmployeesChange,
   onSelectedNamesChange,
+  onAddEmployee,
 }: EmployeeSelectorProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const selectedSet = new Set(
     selectedNames.map((name) => name.trim().toLowerCase()),
@@ -34,17 +34,27 @@ export function EmployeeSelector({
     onSelectedNamesChange([...selectedNames, name]);
   }
 
-  function handleAdd() {
-    const result = addEmployee(employees, newName);
-    if (result.error || !result.employee) {
-      setError(result.error ?? 'Unable to add employee.');
+  async function handleAdd() {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      setError('Employee name is required.');
       return;
     }
-    onEmployeesChange(result.employees);
-    onSelectedNamesChange([...selectedNames, result.employee.name]);
-    setNewName('');
+
+    setBusy(true);
     setError(null);
-    setIsAdding(false);
+    try {
+      const employee = await onAddEmployee(trimmed);
+      onSelectedNamesChange([...selectedNames, employee.name]);
+      setNewName('');
+      setIsAdding(false);
+    } catch (addError) {
+      setError(
+        addError instanceof Error ? addError.message : 'Unable to add employee.',
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -98,6 +108,7 @@ export function EmployeeSelector({
             id="add-employee-name"
             type="text"
             value={newName}
+            disabled={busy}
             onChange={(event) => {
               setNewName(event.target.value);
               setError(null);
@@ -108,6 +119,7 @@ export function EmployeeSelector({
             <button
               type="button"
               className="ops-btn ops-btn--ghost"
+              disabled={busy}
               onClick={() => {
                 setIsAdding(false);
                 setNewName('');
@@ -116,8 +128,15 @@ export function EmployeeSelector({
             >
               Cancel
             </button>
-            <button type="button" className="ops-btn ops-btn--secondary" onClick={handleAdd}>
-              Add
+            <button
+              type="button"
+              className="ops-btn ops-btn--secondary"
+              disabled={busy}
+              onClick={() => {
+                void handleAdd();
+              }}
+            >
+              {busy ? 'Saving...' : 'Add'}
             </button>
           </div>
         </div>

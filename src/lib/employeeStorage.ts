@@ -12,65 +12,72 @@ function isEmployee(value: unknown): value is Employee {
   return typeof record.id === 'string' && typeof record.name === 'string';
 }
 
-function persistEmployees(employees: Employee[]): void {
-  try {
-    window.localStorage.setItem(EMPLOYEE_STORAGE_KEY, JSON.stringify(employees));
-  } catch {
-    // Ignore storage failures.
+/**
+ * Normalize a parsed JSON value into employees.
+ * Throws when the payload is not a usable array.
+ */
+export function normalizeEmployeesPayload(parsed: unknown): Employee[] {
+  if (!Array.isArray(parsed)) {
+    throw new Error('Shared employees file is not a valid array.');
   }
+  if (!parsed.every(isEmployee)) {
+    throw new Error('Shared employees file is corrupted and cannot be read.');
+  }
+  return parsed.map((employee) => ({ ...employee }));
 }
 
-export function saveEmployees(employees: Employee[]): void {
-  persistEmployees(employees);
+/** Read legacy browser-local employees for one-time GitHub migration. */
+export function readLocalEmployeesSnapshot(): Employee[] | null {
+  try {
+    const raw = window.localStorage.getItem(EMPLOYEE_STORAGE_KEY);
+    if (raw !== null) {
+      try {
+        const employees = normalizeEmployeesPayload(JSON.parse(raw) as unknown);
+        return employees;
+      } catch {
+        // Fall through to legacy.
+      }
+    }
+
+    for (const key of LEGACY_EMPLOYEE_STORAGE_KEYS) {
+      const legacyRaw = window.localStorage.getItem(key);
+      if (legacyRaw === null) {
+        continue;
+      }
+      try {
+        return normalizeEmployeesPayload(JSON.parse(legacyRaw) as unknown);
+      } catch {
+        // Try next key.
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
-function clearLegacyStorage(): void {
+export function hasLocalEmployeesSnapshot(): boolean {
+  const snapshot = readLocalEmployeesSnapshot();
+  return snapshot !== null && snapshot.length > 0;
+}
+
+export function clearLocalEmployeesSnapshot(): void {
+  try {
+    window.localStorage.removeItem(EMPLOYEE_STORAGE_KEY);
+  } catch {
+    // Ignore.
+  }
   for (const key of LEGACY_EMPLOYEE_STORAGE_KEYS) {
     try {
       window.localStorage.removeItem(key);
     } catch {
-      // Ignore cleanup failures.
+      // Ignore.
     }
   }
 }
 
-export function loadEmployees(seedNames: string[] = []): Employee[] {
-  clearLegacyStorage();
-
-  try {
-    const raw = window.localStorage.getItem(EMPLOYEE_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.every(isEmployee)) {
-        return parsed.map((employee) => ({ ...employee }));
-      }
-    }
-  } catch {
-    // Fall through to seed.
-  }
-
-  const unique = new Map<string, string>();
-  for (const name of seedNames) {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      continue;
-    }
-    const key = normalizeItemName(trimmed);
-    if (!unique.has(key)) {
-      unique.set(key, trimmed);
-    }
-  }
-
-  const employees = [...unique.values()].map((name) => ({
-    id: createId('emp'),
-    name,
-  }));
-
-  persistEmployees(employees);
-  return employees;
-}
-
-export function addEmployee(
+/** Pure helper — does not persist. Used by UI before GitHub write. */
+export function buildEmployeeAddition(
   employees: Employee[],
   name: string,
 ): { employees: Employee[]; employee: Employee | null; error?: string } {
@@ -95,7 +102,43 @@ export function addEmployee(
     id: createId('emp'),
     name: trimmed,
   };
-  const next = [...employees, employee];
-  persistEmployees(next);
-  return { employees: next, employee };
+  return { employees: [...employees, employee], employee };
+}
+
+/** @deprecated Prefer GitHub-backed employee list. */
+export function loadEmployees(seedNames: string[] = []): Employee[] {
+  const local = readLocalEmployeesSnapshot();
+  if (local) {
+    return local;
+  }
+
+  const unique = new Map<string, string>();
+  for (const name of seedNames) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const key = normalizeItemName(trimmed);
+    if (!unique.has(key)) {
+      unique.set(key, trimmed);
+    }
+  }
+
+  return [...unique.values()].map((name) => ({
+    id: createId('emp'),
+    name,
+  }));
+}
+
+/** @deprecated Local persistence removed — kept for type compatibility. */
+export function saveEmployees(_employees: Employee[]): void {
+  // No-op: employees are stored in GitHub.
+}
+
+/** @deprecated Use buildEmployeeAddition + GitHub save. */
+export function addEmployee(
+  employees: Employee[],
+  name: string,
+): { employees: Employee[]; employee: Employee | null; error?: string } {
+  return buildEmployeeAddition(employees, name);
 }

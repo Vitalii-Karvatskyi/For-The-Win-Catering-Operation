@@ -4,7 +4,9 @@ import { TaskChecklist } from './TaskChecklist';
 
 type CateringEventDetailsProps = {
   event: CateringEvent;
-  onUpdateEvent: (event: CateringEvent) => void;
+  savingChecklistIds: ReadonlySet<string>;
+  onTogglePreparationTask: (eventId: string, taskId: string) => Promise<void>;
+  onToggleDocument: (eventId: string, documentId: string) => Promise<void>;
 };
 
 function formatSupplyQuantity(item: SupplyItem): string {
@@ -29,7 +31,9 @@ function SupplyList({ items }: { items: SupplyItem[] }) {
 
 export function CateringEventDetails({
   event,
-  onUpdateEvent,
+  savingChecklistIds,
+  onTogglePreparationTask,
+  onToggleDocument,
 }: CateringEventDetailsProps) {
   const menu = event.menuOrder;
   const hasStandardMenu =
@@ -41,24 +45,6 @@ export function CateringEventDetails({
   const requirements = calculateCateringRequirements(menu);
   const hasNotes = Boolean(event.notes?.trim());
   const hasEmployees = event.assignedEmployees.length > 0;
-
-  function toggleTask(taskId: string) {
-    onUpdateEvent({
-      ...event,
-      preparationTasks: event.preparationTasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task,
-      ),
-    });
-  }
-
-  function toggleDocument(documentId: string) {
-    onUpdateEvent({
-      ...event,
-      documents: event.documents.map((doc) =>
-        doc.id === documentId ? { ...doc, completed: !doc.completed } : doc,
-      ),
-    });
-  }
 
   return (
     <div className="ops-details">
@@ -118,7 +104,16 @@ export function CateringEventDetails({
           <TaskChecklist
             idPrefix={`task-${event.id}`}
             items={event.preparationTasks}
-            onToggle={toggleTask}
+            busyIds={
+              new Set(
+                [...savingChecklistIds]
+                  .filter((key) => key.startsWith(`${event.id}:task:`))
+                  .map((key) => key.slice(`${event.id}:task:`.length)),
+              )
+            }
+            onToggle={(taskId) => {
+              void onTogglePreparationTask(event.id, taskId);
+            }}
           />
         </section>
       ) : null}
@@ -143,7 +138,16 @@ export function CateringEventDetails({
           <TaskChecklist
             idPrefix={`doc-${event.id}`}
             items={event.documents}
-            onToggle={toggleDocument}
+            busyIds={
+              new Set(
+                [...savingChecklistIds]
+                  .filter((key) => key.startsWith(`${event.id}:doc:`))
+                  .map((key) => key.slice(`${event.id}:doc:`.length)),
+              )
+            }
+            onToggle={(documentId) => {
+              void onToggleDocument(event.id, documentId);
+            }}
           />
         </section>
       ) : null}

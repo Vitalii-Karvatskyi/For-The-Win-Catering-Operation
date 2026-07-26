@@ -400,51 +400,44 @@ function getSeedCopy(): CateringEvent[] {
   return structuredClone(seedCaterings);
 }
 
-function persistEvents(events: CateringEvent[]): void {
-  try {
-    window.localStorage.setItem(CATERING_STORAGE_KEY, JSON.stringify(events));
-  } catch {
-    // Ignore storage failures.
+/** Local catering writes are disabled — shared GitHub storage is primary. */
+export function saveCaterings(_events: CateringEvent[]): void {
+  // No-op.
+}
+
+/**
+ * Normalize a parsed JSON value into catering events.
+ * Throws when the payload is not a usable array.
+ */
+export function normalizeCateringsPayload(parsed: unknown): CateringEvent[] {
+  if (!Array.isArray(parsed)) {
+    throw new Error('Shared caterings file is not a valid array.');
   }
-}
 
-export function saveCaterings(events: CateringEvent[]): void {
-  persistEvents(events);
-}
-
-function readAndMigrate(raw: string): CateringEvent[] | null {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-
-    if (parsed.every(isCateringEvent)) {
-      return parsed.map((event) => structuredClone(event));
-    }
-
-    const migrated = parsed
-      .map(migrateCateringEvent)
-      .filter((event): event is CateringEvent => event !== null);
-
-    if (migrated.length === 0 && parsed.length > 0) {
-      return null;
-    }
-
-    return migrated;
-  } catch {
-    return null;
+  if (parsed.every(isCateringEvent)) {
+    return parsed.map((event) => structuredClone(event));
   }
+
+  const migrated = parsed
+    .map(migrateCateringEvent)
+    .filter((event): event is CateringEvent => event !== null);
+
+  if (migrated.length === 0 && parsed.length > 0) {
+    throw new Error('Shared caterings file is corrupted and cannot be read.');
+  }
+
+  return migrated;
 }
 
-export function loadCaterings(): CateringEvent[] {
+/** Read legacy browser-local caterings for one-time GitHub migration. */
+export function readLocalCateringsSnapshot(): CateringEvent[] | null {
   try {
     const currentRaw = window.localStorage.getItem(CATERING_STORAGE_KEY);
     if (currentRaw !== null) {
-      const current = readAndMigrate(currentRaw);
-      if (current) {
-        persistEvents(current);
-        return current;
+      try {
+        return normalizeCateringsPayload(JSON.parse(currentRaw) as unknown);
+      } catch {
+        // Fall through to legacy keys.
       }
     }
 
@@ -453,26 +446,45 @@ export function loadCaterings(): CateringEvent[] {
       if (legacyRaw === null) {
         continue;
       }
-      const legacy = readAndMigrate(legacyRaw);
-      if (legacy) {
-        persistEvents(legacy);
-        try {
-          window.localStorage.removeItem(legacyKey);
-        } catch {
-          // Ignore cleanup failures.
-        }
-        return legacy;
+      try {
+        return normalizeCateringsPayload(JSON.parse(legacyRaw) as unknown);
+      } catch {
+        // Try next legacy key.
       }
     }
-
-    const seed = getSeedCopy();
-    persistEvents(seed);
-    return seed;
   } catch {
-    const seed = getSeedCopy();
-    persistEvents(seed);
-    return seed;
+    return null;
   }
+  return null;
+}
+
+export function hasLocalCateringsSnapshot(): boolean {
+  const snapshot = readLocalCateringsSnapshot();
+  return snapshot !== null && snapshot.length > 0;
+}
+
+export function clearLocalCateringsSnapshot(): void {
+  try {
+    window.localStorage.removeItem(CATERING_STORAGE_KEY);
+  } catch {
+    // Ignore.
+  }
+  for (const legacyKey of LEGACY_STORAGE_KEYS) {
+    try {
+      window.localStorage.removeItem(legacyKey);
+    } catch {
+      // Ignore.
+    }
+  }
+}
+
+/** @deprecated Local storage is no longer the primary catering source. */
+export function loadCaterings(): CateringEvent[] {
+  const local = readLocalCateringsSnapshot();
+  if (local) {
+    return local;
+  }
+  return getSeedCopy();
 }
 
 export function collectEmployeeNames(events: CateringEvent[]): string[] {

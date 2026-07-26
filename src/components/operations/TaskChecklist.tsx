@@ -8,14 +8,21 @@ type TaskChecklistEntry = {
 type TaskChecklistProps = {
   idPrefix: string;
   items: TaskChecklistEntry[];
+  busyIds?: ReadonlySet<string>;
   onToggle: (id: string) => void;
 };
 
-export function TaskChecklist({ idPrefix, items, onToggle }: TaskChecklistProps) {
+export function TaskChecklist({
+  idPrefix,
+  items,
+  busyIds,
+  onToggle,
+}: TaskChecklistProps) {
   return (
     <ul className="ops-tasklist">
       {items.map((item) => {
         const inputId = `${idPrefix}-${item.id}`;
+        const busy = busyIds?.has(item.id) ?? false;
         return (
           <li
             key={item.id}
@@ -23,13 +30,14 @@ export function TaskChecklist({ idPrefix, items, onToggle }: TaskChecklistProps)
               item.completed
                 ? 'ops-tasklist__item--done'
                 : 'ops-tasklist__item--pending'
-            }`}
+            } ${busy ? 'ops-tasklist__item--busy' : ''}`}
           >
             <input
               id={inputId}
               type="checkbox"
               className="ops-tasklist__checkbox"
               checked={item.completed}
+              disabled={busy}
               onChange={() => onToggle(item.id)}
             />
             <label className="ops-tasklist__body" htmlFor={inputId}>
@@ -45,7 +53,7 @@ export function TaskChecklist({ idPrefix, items, onToggle }: TaskChecklistProps)
                   : 'ops-tasklist__status--pending'
               }`}
             >
-              {item.completed ? 'Done' : 'Pending'}
+              {busy ? 'Saving...' : item.completed ? 'Done' : 'Pending'}
             </span>
           </li>
         );

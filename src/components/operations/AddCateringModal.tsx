@@ -17,7 +17,6 @@ import {
   createStandardProducts,
 } from '../../lib/cateringStandards';
 import { isValidServiceWindow } from '../../lib/cateringTime';
-import { loadEmployees } from '../../lib/employeeStorage';
 import { AutomaticRequirements } from './AutomaticRequirements';
 import { CateringTimeInput } from './CateringTimeInput';
 import { CollapsibleFormSection } from './CollapsibleFormSection';
@@ -31,9 +30,11 @@ type CateringFormModalProps = {
   open: boolean;
   mode: CateringFormMode;
   event?: CateringEvent | null;
+  employees: Employee[];
   onClose: () => void;
-  onSave: (event: CateringEvent) => void;
-  onDelete: (eventId: string) => void;
+  onSave: (event: CateringEvent) => Promise<void>;
+  onDelete: (eventId: string) => Promise<void>;
+  onAddEmployee: (name: string) => Promise<Employee>;
 };
 
 type FormValues = {
@@ -228,9 +229,11 @@ export function AddCateringModal({
   open,
   mode,
   event = null,
+  employees,
   onClose,
   onSave,
   onDelete,
+  onAddEmployee,
 }: CateringFormModalProps) {
   const titleId = useId();
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -243,10 +246,12 @@ export function AddCateringModal({
   const [preparationTasks, setPreparationTasks] = useState<PreparationTask[]>([]);
   const [documents, setDocuments] = useState<DocumentTask[]>([]);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [openSections, setOpenSections] =
     useState<Record<SectionKey, boolean>>(CLOSED_SECTIONS);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   onCloseRef.current = onClose;
 
@@ -254,10 +259,6 @@ export function AddCateringModal({
     if (!open) {
       return;
     }
-
-    setEmployees(
-      loadEmployees(event?.assignedEmployees ? [...event.assignedEmployees] : []),
-    );
 
     if (mode === 'edit' && event) {
       setValues(eventToForm(event));
@@ -281,6 +282,9 @@ export function AddCateringModal({
     }
 
     setErrors({});
+    setFormError(null);
+    setSaving(false);
+    setDeleting(false);
     setOpenSections(CLOSED_SECTIONS);
 
     const previousOverflow = document.body.style.overflow;
@@ -291,7 +295,7 @@ export function AddCateringModal({
     });
 
     function handleKeyDown(keyboardEvent: KeyboardEvent) {
-      if (keyboardEvent.key === 'Escape') {
+      if (keyboardEvent.key === 'Escape' && !saving && !deleting) {
         onCloseRef.current();
       }
     }
@@ -329,8 +333,12 @@ export function AddCateringModal({
     setOpenSections((current) => ({ ...current, [key]: !current[key] }));
   }
 
-  function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
+    if (saving || deleting) {
+      return;
+    }
+
     const nextErrors = validateForm(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -360,19 +368,38 @@ export function AddCateringModal({
       cateringEvent.notes = notes;
     }
 
-    onSave(cateringEvent);
-    onClose();
+    setSaving(true);
+    setFormError(null);
+    try {
+      await onSave(cateringEvent);
+      onClose();
+    } catch (error) {
+      setFormError('Save failed.');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (
       !editingId ||
+      saving ||
+      deleting ||
       !window.confirm(`Delete catering "${values.eventName}"? This cannot be undone.`)
     ) {
       return;
     }
-    onDelete(editingId);
-    onClose();
+
+    setDeleting(true);
+    setFormError(null);
+    try {
+      await onDelete(editingId);
+      onClose();
+    } catch {
+      setFormError('Save failed.');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -521,8 +548,8 @@ export function AddCateringModal({
                 <EmployeeSelector
                   employees={employees}
                   selectedNames={selectedEmployees}
-                  onEmployeesChange={setEmployees}
                   onSelectedNamesChange={setSelectedEmployees}
+                  onAddEmployee={onAddEmployee}
                 />
               </div>
 
@@ -601,20 +628,41 @@ export function AddCateringModal({
           </div>
 
           <div className="ops-modal__footer">
-            <button type="button" className="ops-btn ops-btn--ghost" onClick={onClose}>
+            {formError ? (
+              <p className="ops-field__error ops-modal__form-error" role="alert">
+                {formError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="ops-btn ops-btn--ghost"
+              onClick={onClose}
+              disabled={saving || deleting}
+            >
               Cancel
             </button>
             {mode === 'edit' ? (
               <button
                 type="button"
                 className="ops-btn ops-btn--danger ops-modal__delete"
-                onClick={handleDelete}
+                onClick={() => {
+                  void handleDelete();
+                }}
+                disabled={saving || deleting}
               >
-                Delete Catering
+                {deleting ? 'Deleting...' : 'Delete Catering'}
               </button>
             ) : null}
-            <button type="submit" className="ops-btn ops-btn--primary">
-              {mode === 'edit' ? 'Save Changes' : 'Save Catering'}
+            <button
+              type="submit"
+              className="ops-btn ops-btn--primary"
+              disabled={saving || deleting}
+            >
+              {saving
+                ? 'Saving...'
+                : mode === 'edit'
+                  ? 'Save Changes'
+                  : 'Save Catering'}
             </button>
           </div>
         </form>

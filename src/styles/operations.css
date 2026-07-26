@@ -1617,6 +1617,120 @@
   overflow-wrap: anywhere;
 }
 
+/* —— GitHub connection / migration —— */
+.ops-modal--blocking {
+  z-index: 80;
+}
+
+.ops-modal__dialog--connect {
+  width: min(100%, 520px);
+}
+
+.ops-connect__description,
+.ops-connect__warning {
+  margin: 0 0 0.85rem;
+  font-size: 0.98rem;
+  color: var(--ftw-text);
+}
+
+.ops-connect__warning {
+  font-weight: 700;
+  color: #8a2a00;
+}
+
+.ops-header__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--ftw-border);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ops-header__status--ok {
+  color: #1f5c35;
+  background: #e4f4ea;
+  border-color: #8fc9a3;
+}
+
+.ops-header__status--warn {
+  color: #8a2a00;
+  background: #ffe8dc;
+  border-color: #f0a078;
+}
+
+.ops-header__disconnect {
+  min-height: 2.5rem;
+}
+
+.ops-banner,
+.ops-migration,
+.ops-state-panel {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--ftw-white);
+  border: 1px solid var(--ftw-border);
+}
+
+.ops-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.ops-banner p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ops-migration__title,
+.ops-state-panel__title {
+  margin: 0 0 0.45rem;
+  font-family: var(--ftw-font-display);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ops-migration__text,
+.ops-state-panel__text {
+  margin: 0 0 0.85rem;
+  color: var(--ftw-gray-600);
+}
+
+.ops-migration__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.ops-modal__form-error {
+  width: 100%;
+  margin: 0;
+  order: -1;
+}
+
+.ops-tasklist__item--busy {
+  opacity: 0.75;
+}
+
+@media (max-width: 600px) {
+  .ops-modal__dialog--connect {
+    width: 100%;
+  }
+
+  .ops-migration__actions .ops-btn {
+    width: 100%;
+  }
+}
+
+
 /* —— Responsive refinements —— */
 @media (max-width: 1024px) {
   .ops-modal {
