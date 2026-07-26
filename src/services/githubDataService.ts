@@ -1,14 +1,9 @@
 import type { CateringEvent, Employee } from '../types/cateringOperations';
-import {
-  normalizeCateringsPayload,
-  readLocalCateringsSnapshot,
-} from '../lib/cateringStorage';
+import { normalizeCateringsPayload } from '../lib/cateringStorage';
 import {
   buildEmployeeAddition,
   normalizeEmployeesPayload,
-  readLocalEmployeesSnapshot,
 } from '../lib/employeeStorage';
-import { normalizeItemName } from '../lib/cateringStandards';
 
 export const GITHUB_TOKEN_STORAGE_KEY = 'ftw-github-token';
 
@@ -572,77 +567,4 @@ export async function addEmployee(
   }
 
   return { employees, employee: added };
-}
-
-export function detectLocalDataForMigration(): boolean {
-  const localCaterings = readLocalCateringsSnapshot();
-  const localEmployees = readLocalEmployeesSnapshot();
-  return (
-    (localCaterings !== null && localCaterings.length > 0) ||
-    (localEmployees !== null && localEmployees.length > 0)
-  );
-}
-
-export async function uploadLocalData(
-  token?: string,
-): Promise<{ caterings: CateringEvent[]; employees: Employee[]; uploaded: boolean }> {
-  const localCaterings = readLocalCateringsSnapshot() ?? [];
-  const localEmployees = readLocalEmployeesSnapshot() ?? [];
-
-  if (localCaterings.length === 0 && localEmployees.length === 0) {
-    const [caterings, employees] = await Promise.all([
-      loadCaterings(token),
-      loadEmployees(token),
-    ]);
-    return { caterings, employees, uploaded: false };
-  }
-
-  const remoteCaterings = await loadCaterings(token);
-  const remoteEmployees = await loadEmployees(token);
-
-  const cateringMap = new Map<string, CateringEvent>();
-  for (const event of localCaterings) {
-    cateringMap.set(event.id, structuredClone(event));
-  }
-  for (const event of remoteCaterings) {
-    cateringMap.set(event.id, structuredClone(event));
-  }
-  const mergedCaterings = [...cateringMap.values()];
-
-  const employeeMap = new Map<string, Employee>();
-  for (const employee of localEmployees) {
-    employeeMap.set(normalizeItemName(employee.name), { ...employee });
-  }
-  for (const employee of remoteEmployees) {
-    employeeMap.set(normalizeItemName(employee.name), { ...employee });
-  }
-  const mergedEmployees = [...employeeMap.values()];
-
-  const cateringsToSave =
-    mergedCaterings.length > 0 || remoteCaterings.length === 0
-      ? mergedCaterings
-      : remoteCaterings;
-  const employeesToSave =
-    mergedEmployees.length > 0 || remoteEmployees.length === 0
-      ? mergedEmployees
-      : remoteEmployees;
-
-  const [caterings, employees] = await Promise.all([
-    mutateJsonFile(
-      CATERINGS_PATH,
-      () => 'Migrate local FTW operations data',
-      parseCaterings,
-      () => cateringsToSave.map((event) => structuredClone(event)),
-      token,
-    ),
-    mutateJsonFile(
-      EMPLOYEES_PATH,
-      () => 'Migrate local FTW operations data',
-      parseEmployees,
-      () => employeesToSave.map((employee) => ({ ...employee })),
-      token,
-    ),
-  ]);
-
-  return { caterings, employees, uploaded: true };
 }

@@ -1617,7 +1617,7 @@
   overflow-wrap: anywhere;
 }
 
-/* —— GitHub connection / migration —— */
+/* —— GitHub connection —— */
 .ops-modal--blocking {
   z-index: 80;
 }
@@ -1667,7 +1667,6 @@
 }
 
 .ops-banner,
-.ops-migration,
 .ops-state-panel {
   margin-bottom: 1rem;
   padding: 0.9rem 1rem;
@@ -1688,7 +1687,6 @@
   font-weight: 600;
 }
 
-.ops-migration__title,
 .ops-state-panel__title {
   margin: 0 0 0.45rem;
   font-family: var(--ftw-font-display);
@@ -1698,16 +1696,9 @@
   text-transform: uppercase;
 }
 
-.ops-migration__text,
 .ops-state-panel__text {
   margin: 0 0 0.85rem;
   color: var(--ftw-gray-600);
-}
-
-.ops-migration__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
 }
 
 .ops-modal__form-error {
@@ -1722,10 +1713,6 @@
 
 @media (max-width: 600px) {
   .ops-modal__dialog--connect {
-    width: 100%;
-  }
-
-  .ops-migration__actions .ops-btn {
     width: 100%;
   }
 }

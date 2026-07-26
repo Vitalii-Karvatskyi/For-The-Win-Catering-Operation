@@ -9,19 +9,10 @@ import {
   groupEventsByDate,
 } from '../../lib/cateringOperations';
 import {
-  clearLocalCateringsSnapshot,
-  hasLocalCateringsSnapshot,
-} from '../../lib/cateringStorage';
-import {
-  clearLocalEmployeesSnapshot,
-  hasLocalEmployeesSnapshot,
-} from '../../lib/employeeStorage';
-import {
   addEmployee as addEmployeeRemote,
   clearGitHubToken,
   createCatering,
   deleteCatering,
-  detectLocalDataForMigration,
   getGitHubToken,
   GitHubApiError,
   loadCaterings,
@@ -31,7 +22,6 @@ import {
   updateCatering,
   updateDocument,
   updatePreparationTask,
-  uploadLocalData,
 } from '../../services/githubDataService';
 import { OperationsHeader } from './OperationsHeader';
 import { OperationsSummary } from './OperationsSummary';
@@ -66,8 +56,6 @@ export function OperationsPage() {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
-  const [showMigration, setShowMigration] = useState(false);
-  const [migrationBusy, setMigrationBusy] = useState(false);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [savingChecklistIds, setSavingChecklistIds] = useState<ReadonlySet<string>>(
     () => new Set(),
@@ -83,7 +71,6 @@ export function OperationsPage() {
     setConnectOpen(true);
     setConnectError(message ?? 'GitHub access expired. Enter a new token.');
     setBannerMessage(null);
-    setShowMigration(false);
   }, []);
 
   const loadSharedData = useCallback(async () => {
@@ -100,7 +87,6 @@ export function OperationsPage() {
       setEmployees(nextEmployees);
       setPhase('ready');
       setStatusLabel('GitHub Connected');
-      setShowMigration(detectLocalDataForMigration());
       setConnectOpen(false);
       setConnectError(null);
     } catch (error) {
@@ -201,7 +187,6 @@ export function OperationsPage() {
     setConnectOpen(true);
     setConnectError(null);
     setBannerMessage(null);
-    setShowMigration(false);
     setModal({ open: false });
   }
 
@@ -372,48 +357,6 @@ export function OperationsPage() {
     }
   }
 
-  async function handleUploadLocalData() {
-    setMigrationBusy(true);
-    setBannerMessage(null);
-    try {
-      const result = await uploadLocalData();
-      setEvents(result.caterings);
-      setEmployees(result.employees);
-      setBannerMessage('Local data uploaded successfully.');
-      setShowMigration(
-        hasLocalCateringsSnapshot() || hasLocalEmployeesSnapshot(),
-      );
-    } catch (error) {
-      if (error instanceof GitHubApiError && error.code === 'unauthorized') {
-        handleAuthFailure('GitHub access expired. Enter a new token.');
-      } else {
-        setBannerMessage(
-          error instanceof Error ? error.message : 'Save failed.',
-        );
-      }
-    } finally {
-      setMigrationBusy(false);
-    }
-  }
-
-  function handleIgnoreLocalData() {
-    setShowMigration(false);
-  }
-
-  function handleClearOldLocalData() {
-    if (
-      !window.confirm(
-        'Clear old local catering and employee data from this browser? The GitHub token will be kept.',
-      )
-    ) {
-      return;
-    }
-    clearLocalCateringsSnapshot();
-    clearLocalEmployeesSnapshot();
-    setShowMigration(false);
-    setBannerMessage('Old local data cleared.');
-  }
-
   function handleToggle(eventId: string) {
     setExpandedIds((current) => {
       const next = new Set(current);
@@ -461,43 +404,6 @@ export function OperationsPage() {
                 Dismiss
               </button>
             </div>
-          ) : null}
-
-          {showMigration && connected ? (
-            <section className="ops-migration" aria-label="Local Data Found">
-              <h2 className="ops-migration__title">Local Data Found</h2>
-              <p className="ops-migration__text">
-                This browser contains catering data from the previous local version.
-              </p>
-              <div className="ops-migration__actions">
-                <button
-                  type="button"
-                  className="ops-btn ops-btn--primary"
-                  disabled={migrationBusy}
-                  onClick={() => {
-                    void handleUploadLocalData();
-                  }}
-                >
-                  {migrationBusy ? 'Uploading...' : 'Upload Local Data'}
-                </button>
-                <button
-                  type="button"
-                  className="ops-btn ops-btn--secondary"
-                  disabled={migrationBusy}
-                  onClick={handleIgnoreLocalData}
-                >
-                  Ignore
-                </button>
-                <button
-                  type="button"
-                  className="ops-btn ops-btn--danger"
-                  disabled={migrationBusy}
-                  onClick={handleClearOldLocalData}
-                >
-                  Clear Old Local Data
-                </button>
-              </div>
-            </section>
           ) : null}
 
           {phase === 'data-error' ? (

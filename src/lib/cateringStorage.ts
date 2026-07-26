@@ -18,9 +18,6 @@ import {
   normalizeItemName,
 } from './cateringStandards';
 
-export const CATERING_STORAGE_KEY = 'ftw-catering-events-v3';
-const LEGACY_STORAGE_KEYS = ['ftw-catering-events-v2', 'ftw-catering-events-v1'];
-
 const VALID_STATUSES: readonly CateringEventStatus[] = [
   'planning',
   'in-progress',
@@ -429,61 +426,8 @@ export function normalizeCateringsPayload(parsed: unknown): CateringEvent[] {
   return migrated;
 }
 
-/** Read legacy browser-local caterings for one-time GitHub migration. */
-export function readLocalCateringsSnapshot(): CateringEvent[] | null {
-  try {
-    const currentRaw = window.localStorage.getItem(CATERING_STORAGE_KEY);
-    if (currentRaw !== null) {
-      try {
-        return normalizeCateringsPayload(JSON.parse(currentRaw) as unknown);
-      } catch {
-        // Fall through to legacy keys.
-      }
-    }
-
-    for (const legacyKey of LEGACY_STORAGE_KEYS) {
-      const legacyRaw = window.localStorage.getItem(legacyKey);
-      if (legacyRaw === null) {
-        continue;
-      }
-      try {
-        return normalizeCateringsPayload(JSON.parse(legacyRaw) as unknown);
-      } catch {
-        // Try next legacy key.
-      }
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-export function hasLocalCateringsSnapshot(): boolean {
-  const snapshot = readLocalCateringsSnapshot();
-  return snapshot !== null && snapshot.length > 0;
-}
-
-export function clearLocalCateringsSnapshot(): void {
-  try {
-    window.localStorage.removeItem(CATERING_STORAGE_KEY);
-  } catch {
-    // Ignore.
-  }
-  for (const legacyKey of LEGACY_STORAGE_KEYS) {
-    try {
-      window.localStorage.removeItem(legacyKey);
-    } catch {
-      // Ignore.
-    }
-  }
-}
-
-/** @deprecated Local storage is no longer the primary catering source. */
+/** @deprecated Shared GitHub storage is the primary catering source. */
 export function loadCaterings(): CateringEvent[] {
-  const local = readLocalCateringsSnapshot();
-  if (local) {
-    return local;
-  }
   return getSeedCopy();
 }
 
