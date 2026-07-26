@@ -483,7 +483,14 @@
         "quantity": 1
       }
     ],
-    "preparationTasks": [],
+    "preparationTasks": [
+      {
+        "id": "task-8ced2322-a558-4978-adfb-9cac3c95f986",
+        "name": "Buy 1 more grill",
+        "completed": false,
+        "source": "custom"
+      }
+    ],
     "documents": []
   }
 ]
