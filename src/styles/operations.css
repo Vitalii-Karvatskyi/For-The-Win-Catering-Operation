@@ -20,12 +20,15 @@
     Roboto, 'Helvetica Neue', Arial, sans-serif;
   --ops-max: 1100px;
   --ops-radius: 2px;
+  --ops-gutter: 0.85rem;
 
   font-family: var(--ftw-font-body);
   color: var(--ftw-text);
   background: var(--ftw-bg-tertiary);
   min-height: 100vh;
+  min-height: 100dvh;
   line-height: 1.45;
+  overflow-x: clip;
 }
 
 .ops-page *,
@@ -35,13 +38,25 @@
 }
 
 .ops-container {
-  width: min(100% - 1.5rem, var(--ops-max));
+  width: min(100% - (var(--ops-gutter) * 2), var(--ops-max));
   margin-inline: auto;
 }
 
+@media (min-width: 600px) {
+  .ops-page {
+    --ops-gutter: 1.25rem;
+  }
+}
+
 @media (min-width: 768px) {
-  .ops-container {
-    width: min(100% - 3rem, var(--ops-max));
+  .ops-page {
+    --ops-gutter: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ops-page {
+    --ops-gutter: 1.75rem;
   }
 }
 
@@ -66,9 +81,10 @@
 
 .ops-header__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem 1rem;
   padding-block: 0.65rem;
 }
 
@@ -77,6 +93,7 @@
   align-items: center;
   gap: 0.85rem;
   min-width: 0;
+  flex: 1 1 12rem;
 }
 
 .ops-header__logo {
@@ -113,13 +130,16 @@
   font-weight: 500;
   color: var(--ftw-gray-600);
   letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
 }
 
 .ops-header__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .ops-header__badge {
@@ -144,6 +164,7 @@
   gap: 0.35rem;
   margin: 0;
   padding: 0.55rem 0.95rem;
+  min-height: 2.5rem;
   border: 1px solid transparent;
   font-family: var(--ftw-font-nav);
   font-size: 0.88rem;
@@ -153,6 +174,7 @@
   cursor: pointer;
   line-height: 1.1;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .ops-btn--primary {
@@ -234,6 +256,10 @@
   border: 1px solid var(--ftw-border);
   border-top: 3px solid var(--ftw-gray-400);
   padding: 0.9rem 1rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .ops-summary__card--upcomingEvents {
@@ -268,6 +294,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ftw-gray-600);
+  overflow-wrap: anywhere;
 }
 
 /* —— Event groups —— */
@@ -297,6 +324,8 @@
 .ops-card {
   background: var(--ftw-white);
   border: 1px solid var(--ftw-border);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .ops-card__toggle {
@@ -310,6 +339,7 @@
   cursor: pointer;
   font: inherit;
   color: inherit;
+  min-width: 0;
 }
 
 .ops-card__toggle:hover {
@@ -384,18 +414,21 @@
 .ops-card__title {
   margin: 0;
   font-family: var(--ftw-font-display);
-  font-size: 1.55rem;
+  font-size: clamp(1.25rem, 4vw, 1.55rem);
   font-weight: 400;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--ftw-black);
   line-height: 1.1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ops-card__address {
   margin: 0.35rem 0 0;
   font-size: 0.95rem;
   color: var(--ftw-gray-600);
+  overflow-wrap: anywhere;
 }
 
 .ops-card__meta {
@@ -413,6 +446,10 @@
   }
 }
 
+.ops-card__meta-item {
+  min-width: 0;
+}
+
 .ops-card__meta-label {
   display: block;
   font-size: 0.72rem;
@@ -428,16 +465,19 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--ftw-text);
+  overflow-wrap: anywhere;
 }
 
 .ops-card__progress {
   margin-top: 0.95rem;
+  min-width: 0;
 }
 
 .ops-card__progress-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.35rem 0.75rem;
   margin-bottom: 0.35rem;
   font-size: 0.88rem;
   font-weight: 600;
@@ -501,7 +541,7 @@
 
 .ops-details__row {
   display: grid;
-  grid-template-columns: 6.5rem 1fr;
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
   gap: 0.35rem 0.75rem;
   padding: 0.35rem 0;
   border-bottom: 1px solid var(--ftw-bg-secondary);
@@ -528,11 +568,13 @@
   margin: 0;
   font-size: 0.98rem;
   color: var(--ftw-text);
+  overflow-wrap: anywhere;
 }
 
 .ops-details__row a {
   color: var(--ftw-brand-dark);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .ops-details__row a:hover {
@@ -544,6 +586,7 @@
   font-size: 0.98rem;
   color: var(--ftw-text);
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .ops-details__employees {
@@ -561,6 +604,8 @@
   border: 1px solid var(--ftw-border);
   font-size: 0.9rem;
   font-weight: 600;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /* —— Checklist —— */
@@ -589,7 +634,8 @@
   display: flex;
   gap: 0.65rem;
   align-items: flex-start;
-  padding: 0.55rem 0.7rem;
+  padding: 0.7rem 0.7rem;
+  min-height: 2.75rem;
   border-bottom: 1px solid var(--ftw-border);
   background: var(--ftw-white);
 }
@@ -639,6 +685,7 @@
   font-size: 0.98rem;
   font-weight: 600;
   color: var(--ftw-text);
+  overflow-wrap: anywhere;
 }
 
 .ops-checklist__item--done .ops-checklist__name {
@@ -706,8 +753,15 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 0.75rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 768px) {
+  .ops-modal {
+    padding: 2rem 1rem;
+  }
 }
 
 .ops-modal__backdrop {
@@ -726,7 +780,16 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 4rem);
+  max-height: calc(100vh - 1.5rem);
+  max-height: calc(100dvh - 1.5rem);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .ops-modal__dialog {
+    max-height: calc(100vh - 4rem);
+    max-height: calc(100dvh - 4rem);
+  }
 }
 
 .ops-modal__header {
@@ -734,7 +797,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.15rem;
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--ftw-border);
   flex-shrink: 0;
 }
@@ -742,16 +805,19 @@
 .ops-modal__title {
   margin: 0;
   font-family: var(--ftw-font-display);
-  font-size: 1.6rem;
+  font-size: clamp(1.25rem, 4vw, 1.6rem);
   font-weight: 400;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ftw-black);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ops-modal__close {
-  width: 2rem;
-  height: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
   border: 1px solid var(--ftw-border);
   background: var(--ftw-white);
   color: var(--ftw-black);
@@ -770,34 +836,48 @@
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .ops-modal__body {
-  padding: 1.1rem 1.15rem;
+  padding: 1rem;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ops-modal__footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: stretch;
   gap: 0.65rem;
-  padding: 0.9rem 1.15rem;
+  padding: 0.85rem 1rem;
   border-top: 1px solid var(--ftw-border);
   background: var(--ftw-bg-tertiary);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
 }
 
 .ops-modal__delete {
   padding: 0.55rem 1rem;
   font-size: 0.85rem;
+  min-height: 2.75rem;
 }
 
 /* —— Form fields —— */
 .ops-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 0.85rem 0.9rem;
+}
+
+@media (min-width: 600px) {
+  .ops-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .ops-field {
@@ -824,14 +904,22 @@
 .ops-field select,
 .ops-form-checklist__item input,
 .ops-form-checklist__add input,
-.ops-form-checklist__add select {
+.ops-form-checklist__add select,
+.ops-menu__open-item input,
+.ops-editor__row input,
+.ops-editor__item > input,
+.ops-editor__add input,
+.ops-employees__add input {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--ftw-border);
   background: var(--ftw-white);
   color: var(--ftw-text);
   font: inherit;
   font-size: 1rem;
+  box-sizing: border-box;
 }
 
 .ops-field input:focus,
@@ -877,6 +965,7 @@
 
 .ops-form-checklist__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -925,7 +1014,7 @@
 
 .ops-form-checklist__item-main {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: center;
 }
@@ -941,16 +1030,23 @@
 
 .ops-form-checklist__item-meta {
   display: grid;
-  grid-template-columns: 5rem 6rem auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 0.45rem;
   align-items: center;
 }
 
 .ops-form-checklist__add {
   display: grid;
-  grid-template-columns: 1fr 10rem auto;
+  grid-template-columns: 1fr;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
+}
+
+@media (min-width: 600px) {
+  .ops-form-checklist__add {
+    grid-template-columns: minmax(0, 1fr) minmax(8rem, 10rem) auto;
+    align-items: center;
+  }
 }
 
 .ops-modal__dialog--wide {
@@ -959,13 +1055,16 @@
 
 .ops-card__toolbar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.5rem;
   padding: 0.75rem 1.1rem 0;
 }
 
 .ops-card__edit {
-  padding: 0.4rem 0.75rem;
+  padding: 0.55rem 0.85rem;
   font-size: 0.78rem;
+  min-height: 2.75rem;
 }
 
 .ops-details__empty {
@@ -985,6 +1084,7 @@
   border-bottom: 1px solid var(--ftw-bg-secondary);
   font-size: 0.98rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .ops-details__menu li:last-child {
@@ -994,21 +1094,25 @@
 /* —— Time input —— */
 .ops-time {
   display: grid;
-  grid-template-columns: 4rem 4.5rem 4.5rem;
+  grid-template-columns: minmax(3.5rem, 1fr) minmax(4rem, 1fr) minmax(4rem, 1fr);
   gap: 0.4rem;
+  max-width: 16rem;
+  width: 100%;
 }
 
 .ops-time__hour,
 .ops-time__minute,
 .ops-time__period {
   width: 100%;
-  padding: 0.55rem 0.4rem;
+  min-width: 0;
+  padding: 0.55rem 0.35rem;
   border: 1px solid var(--ftw-border);
   background: var(--ftw-white);
   color: var(--ftw-text);
   font: inherit;
   font-size: 1rem;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .ops-time[aria-invalid='true'] .ops-time__hour,
@@ -1029,18 +1133,24 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   margin: 0;
-  padding: 0.8rem 0.9rem;
+  padding: 0.85rem 0.9rem;
+  min-height: 2.75rem;
   border: 0;
   background: var(--ftw-bg-tertiary);
   font-family: var(--ftw-font-display);
-  font-size: 1.15rem;
+  font-size: clamp(1rem, 3.5vw, 1.15rem);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ftw-black);
   cursor: pointer;
   text-align: left;
+}
+
+.ops-collapse__toggle > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ops-collapse__hint {
@@ -1049,16 +1159,19 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--ftw-brand);
+  flex-shrink: 0;
 }
 
 .ops-collapse__body {
-  padding: 0.9rem;
+  padding: 0.85rem;
   border-top: 1px solid var(--ftw-border);
+  min-width: 0;
 }
 
 /* —— Employees —— */
 .ops-employees__header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
@@ -1083,20 +1196,47 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.45rem;
 }
 
+@media (min-width: 480px) {
+  .ops-employees__list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 900px) {
+  .ops-employees__list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .ops-employees__option {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.65rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.7rem;
+  min-height: 2.75rem;
   border: 1px solid var(--ftw-border);
   background: var(--ftw-white);
   cursor: pointer;
   font-weight: 600;
+  min-width: 0;
+  width: 100%;
+}
+
+.ops-employees__option input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.ops-employees__option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ops-employees__option--selected {
@@ -1117,6 +1257,7 @@
 
 .ops-employees__add-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
 }
@@ -1128,6 +1269,7 @@
 
 .ops-menu__open-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
@@ -1161,22 +1303,50 @@
 
 .ops-menu__open-item {
   display: grid;
-  grid-template-columns: 1.4fr 5rem 1fr auto;
+  grid-template-columns: 1fr;
   gap: 0.45rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid var(--ftw-border);
+  background: var(--ftw-bg-tertiary);
+}
+
+@media (min-width: 600px) {
+  .ops-menu__open-item {
+    grid-template-columns: minmax(0, 1.4fr) 5rem minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
 }
 
 .ops-menu__open-item input {
   width: 100%;
-  padding: 0.5rem 0.55rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--ftw-border);
   font: inherit;
+  font-size: 1rem;
+  background: var(--ftw-white);
+  box-sizing: border-box;
+}
+
+.ops-menu__open-item .ops-btn {
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .ops-menu__open-item .ops-btn {
+    width: auto;
+  }
 }
 
 .ops-auto__item {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.35rem 1rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid var(--ftw-bg-secondary);
   font-weight: 600;
@@ -1188,11 +1358,15 @@
 
 .ops-auto__name {
   color: var(--ftw-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  flex: 1 1 8rem;
 }
 
 .ops-auto__qty {
   color: var(--ftw-brand-dark);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ops-editor__item {
@@ -1203,43 +1377,60 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  min-width: 0;
 }
 
 .ops-editor__row {
   display: grid;
-  grid-template-columns: 1.5fr 5rem 6rem auto;
+  grid-template-columns: 1fr;
   gap: 0.45rem;
-  align-items: center;
+  align-items: stretch;
+}
+
+@media (min-width: 600px) {
+  .ops-editor__row {
+    grid-template-columns: minmax(0, 1.5fr) 5rem 6rem auto;
+    align-items: center;
+  }
 }
 
 .ops-editor__row input {
   width: 100%;
-  padding: 0.5rem 0.55rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--ftw-border);
   font: inherit;
+  font-size: 1rem;
   background: var(--ftw-white);
+  box-sizing: border-box;
 }
 
 .ops-editor__name {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .ops-editor__notes {
   margin: 0;
   font-size: 0.85rem;
   color: var(--ftw-gray-600);
+  overflow-wrap: anywhere;
 }
 
 .ops-editor__item > input {
   width: 100%;
-  padding: 0.5rem 0.55rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--ftw-border);
   font: inherit;
+  font-size: 1rem;
   background: var(--ftw-white);
+  box-sizing: border-box;
 }
 
 .ops-editor__task-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -1247,10 +1438,13 @@
 
 .ops-editor__task-row input[type='text'] {
   flex: 1;
-  padding: 0.5rem 0.55rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
   border: 1px solid var(--ftw-border);
   font: inherit;
+  font-size: 1rem;
   background: var(--ftw-white);
+  box-sizing: border-box;
 }
 
 .ops-editor__auto {
@@ -1297,6 +1491,7 @@
 
 .ops-editor__add-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.25rem;
@@ -1313,10 +1508,12 @@
 }
 
 .ops-tasklist__item {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
   gap: 0.65rem;
-  padding: 0.55rem 0.65rem;
+  padding: 0.75rem 0.7rem;
+  min-height: 2.75rem;
   border: 1px solid var(--ftw-border);
   background: var(--ftw-white);
 }
@@ -1326,8 +1523,8 @@
 }
 
 .ops-tasklist__checkbox {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.25rem;
+  height: 1.25rem;
   margin-top: 0.15rem;
   flex-shrink: 0;
   cursor: pointer;
@@ -1336,14 +1533,16 @@
 .ops-tasklist__body {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
   flex: 1;
+  min-width: 0;
   cursor: pointer;
 }
 
 .ops-tasklist__name {
   font-weight: 600;
   color: var(--ftw-text);
+  overflow-wrap: anywhere;
 }
 
 .ops-tasklist__item--done .ops-tasklist__name {
@@ -1354,6 +1553,7 @@
 .ops-tasklist__notes {
   font-size: 0.85rem;
   color: var(--ftw-gray-600);
+  overflow-wrap: anywhere;
 }
 
 .ops-tasklist__status {
@@ -1386,9 +1586,9 @@
 
 .ops-details__supply {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem 1rem;
-  padding: 0.4rem 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 1rem;
+  padding: 0.45rem 0;
   border-bottom: 1px solid var(--ftw-bg-secondary);
 }
 
@@ -1399,16 +1599,216 @@
 .ops-details__supply-name {
   font-weight: 600;
   color: var(--ftw-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ops-details__supply-qty {
   color: var(--ftw-brand-dark);
   font-weight: 600;
   white-space: nowrap;
+  justify-self: end;
 }
 
 .ops-details__supply-notes {
   grid-column: 1 / -1;
   font-size: 0.85rem;
   color: var(--ftw-gray-600);
+  overflow-wrap: anywhere;
+}
+
+/* —— Responsive refinements —— */
+@media (max-width: 1024px) {
+  .ops-modal {
+    padding: 1rem 2.5vw;
+  }
+
+  .ops-modal__dialog,
+  .ops-modal__dialog--wide {
+    width: min(100%, 95vw);
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+  }
+}
+
+@media (max-width: 768px) {
+  .ops-header__logo {
+    height: 48px;
+  }
+
+  .ops-header__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ops-header__actions .ops-btn {
+    flex: 1 1 auto;
+    min-width: 9.5rem;
+  }
+
+  .ops-card__toggle {
+    padding: 0.9rem 0.9rem 0.85rem;
+  }
+
+  .ops-card__toolbar,
+  .ops-card__details {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+  .ops-details__row {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-modal__footer .ops-btn {
+    flex: 1 1 auto;
+    min-width: 7.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .ops-summary__value {
+    font-size: 1.85rem;
+  }
+
+  .ops-summary__label {
+    font-size: 0.78rem;
+  }
+
+  .ops-form-checklist__item-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-editor__row .ops-btn,
+  .ops-editor__task-row .ops-btn,
+  .ops-employees__add-actions .ops-btn {
+    width: 100%;
+  }
+
+  .ops-employees__add-actions {
+    flex-direction: column-reverse;
+  }
+
+  .ops-tasklist__item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ops-tasklist__status {
+    grid-column: 2;
+    justify-self: start;
+    align-self: start;
+  }
+
+  .ops-modal {
+    padding: 0.5rem;
+  }
+
+  .ops-modal__dialog,
+  .ops-modal__dialog--wide {
+    width: 100%;
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .ops-modal__header,
+  .ops-modal__body,
+  .ops-modal__footer {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .ops-modal__footer {
+    flex-direction: column-reverse;
+  }
+
+  .ops-modal__footer .ops-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ops-collapse__body {
+    padding: 0.75rem;
+  }
+
+  .ops-card__edit {
+    width: 100%;
+  }
+
+  .ops-card__toolbar {
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .ops-header__brand {
+    gap: 0.65rem;
+  }
+
+  .ops-header__logo {
+    height: 42px;
+  }
+
+  .ops-header__title {
+    font-size: 1.35rem;
+  }
+
+  .ops-header__subtitle {
+    font-size: 0.85rem;
+  }
+
+  .ops-header__badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .ops-summary__card {
+    padding: 0.75rem 0.8rem;
+  }
+
+  .ops-card__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-details__supply {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-details__supply-qty {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 360px) {
+  .ops-summary__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-time {
+    max-width: none;
+    gap: 0.3rem;
+  }
+
+  .ops-event-group__title {
+    font-size: 1.3rem;
+  }
+}
+
+/* Prevent iOS zoom on focus while keeping readable controls */
+@media (max-width: 768px) {
+  .ops-field input,
+  .ops-field textarea,
+  .ops-field select,
+  .ops-form-checklist__item input,
+  .ops-form-checklist__add input,
+  .ops-form-checklist__add select,
+  .ops-menu__open-item input,
+  .ops-editor__row input,
+  .ops-editor__item > input,
+  .ops-editor__add input,
+  .ops-employees__add input,
+  .ops-time__hour,
+  .ops-time__minute,
+  .ops-time__period {
+    font-size: 16px;
+  }
 }
