@@ -1,5 +1,5 @@
-import { CateringPage } from './components/catering/CateringPage';
+import { OperationsPage } from './components/operations/OperationsPage';
 
 export default function App() {
-  return <CateringPage />;
+  return <OperationsPage />;
 }
