@@ -475,6 +475,7 @@ export function OperationsPage({
 
   return (
     <div className="ops-page">
+      <div id="catering-panel-top" />
       <OperationsHeader
         onAddCatering={() =>
           setModal({ open: true, mode: 'create', event: null })
