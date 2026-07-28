@@ -567,15 +567,136 @@
   gap: 0.4rem;
 }
 
-.todo-people-list li {
+.todo-people-list__item {
   padding: 0.45rem 0.6rem;
   background: #f6f6f6;
   border: 1px solid #d6d6d6;
 }
 
+.todo-people-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.todo-people-list__name {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.todo-person-edit-trigger {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.65rem;
+}
+
+.todo-person-edit {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.todo-person-edit__input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #d6d6d6;
+  background: #ffffff;
+  color: #1a1a1a;
+  font: inherit;
+}
+
+.todo-person-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .todo-people-form {
   display: grid;
   gap: 0.75rem;
+}
+
+.todo-task-form-footer--with-delete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.todo-task-form-footer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-left: auto;
+}
+
+.todo-delete-task-button {
+  background: #ffffff;
+  border-color: #b42318;
+  color: #b42318;
+  font-weight: 700;
+}
+
+.todo-delete-task-button:hover:not(:disabled) {
+  background: #fff5f4;
+  border-color: #912018;
+  color: #912018;
+}
+
+.todo-delete-task-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.todo-delete-confirmation {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.todo-delete-confirmation__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(13, 13, 13, 0.62);
+  opacity: 1;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.todo-delete-confirmation__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 420px);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  opacity: 1;
+  isolation: isolate;
+}
+
+.todo-delete-confirmation__task {
+  margin: 0.85rem 0 0;
+}
+
+.todo-delete-confirmation__task-label {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: #707070;
 }
 
 .todo-assignees {
@@ -680,12 +801,44 @@
     max-height: 180px;
   }
 
-  .todo-form-modal .ops-modal__footer {
+  .todo-people-list__row {
+    align-items: flex-start;
+  }
+
+  .todo-person-edit-actions {
+    width: 100%;
+  }
+
+  .todo-person-edit-actions .ops-btn {
+    flex: 1 1 auto;
+  }
+
+  .todo-form-modal .ops-modal__footer,
+  .todo-task-form-footer--with-delete {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .todo-task-form-footer__actions {
+    margin-left: 0;
+    width: 100%;
     flex-direction: column;
   }
 
-  .todo-form-modal .ops-modal__footer .ops-btn {
+  .todo-form-modal .ops-modal__footer .ops-btn,
+  .todo-task-form-footer__actions .ops-btn,
+  .todo-delete-task-button {
     width: 100%;
+  }
+
+  .todo-delete-confirmation {
+    padding: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .todo-delete-confirmation__dialog {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
   }
 }
 

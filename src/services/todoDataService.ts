@@ -396,6 +396,51 @@ export async function addTodoEmployee(
   );
 }
 
+export async function updateTodoEmployee(
+  employeeId: string,
+  changes: { name: string },
+  key: CryptoKey,
+  token?: string,
+): Promise<TodoEmployee[]> {
+  const trimmed = changes.name.trim();
+  if (!trimmed) {
+    throw new GitHubApiError('Name is required.', null, 'invalid');
+  }
+
+  return mutateEncryptedEmployees(
+    key,
+    'Update To Do employee',
+    (current) => {
+      const index = current.findIndex((item) => item.id === employeeId);
+      if (index === -1) {
+        throw new GitHubApiError('Person was not found.', null, 'not-found');
+      }
+      const duplicate = current.some(
+        (item) =>
+          item.id !== employeeId &&
+          item.name.trim().toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (duplicate) {
+        throw new GitHubApiError(
+          'A person with this name already exists.',
+          null,
+          'invalid',
+        );
+      }
+      const existing = current[index];
+      const next = [...current];
+      next[index] = {
+        ...existing,
+        id: existing.id,
+        createdAt: existing.createdAt,
+        name: trimmed,
+      };
+      return next;
+    },
+    token,
+  );
+}
+
 export async function createTodoTask(
   task: TodoTask,
   key: CryptoKey,
@@ -571,4 +616,72 @@ export async function restoreTodoTask(
     },
     token,
   );
+}
+
+export async function deleteTodoTask(
+  taskId: string,
+  key: CryptoKey,
+  token?: string,
+): Promise<TodoTask[]> {
+  const attempt = async (allowAlreadyDeleted: boolean): Promise<TodoTask[]> => {
+    let { sha, envelope } = await loadEncryptedTodoTasks(token);
+    if (!envelope.initialized) {
+      await putEncryptedWithRetry(
+        TODO_TASKS_PATH,
+        () => encryptJson([], key),
+        'Initialize encrypted To Do tasks',
+        token,
+      );
+      ({ sha, envelope } = await loadEncryptedTodoTasks(token));
+    }
+    if (!envelope.initialized) {
+      throw new TodoCryptoError(
+        'Encrypted To Do tasks file is not initialized.',
+        'corrupt',
+      );
+    }
+
+    const latestTasks = assertTaskArray(await decryptJson(envelope, key));
+    if (!latestTasks.some((task) => task.id === taskId)) {
+      if (allowAlreadyDeleted) {
+        return latestTasks;
+      }
+      throw new GitHubApiError('Task was not found.', null, 'not-found');
+    }
+
+    const updatedTasks = latestTasks.filter((task) => task.id !== taskId);
+    if (latestTasks.length - updatedTasks.length !== 1) {
+      throw new GitHubApiError(
+        'Unable to delete task.',
+        null,
+        'invalid',
+      );
+    }
+
+    const nextEnvelope = await encryptJson(updatedTasks, key);
+    await saveEncryptedTodoTasks(
+      nextEnvelope,
+      sha,
+      'Delete To Do task',
+      token,
+    );
+    return updatedTasks;
+  };
+
+  try {
+    return await attempt(false);
+  } catch (error) {
+    if (!(error instanceof GitHubApiError) || error.code !== 'conflict') {
+      throw error;
+    }
+  }
+
+  try {
+    return await attempt(true);
+  } catch (error) {
+    if (error instanceof GitHubApiError && error.code === 'conflict') {
+      throw todoConflictError(error.status);
+    }
+    throw error;
+  }
 }

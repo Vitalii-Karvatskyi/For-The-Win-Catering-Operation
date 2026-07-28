@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import type {
   TodoEmployee,
@@ -26,9 +33,11 @@ type TaskFormModalProps = {
   departmentOptions: string[];
   task: TodoTask | null;
   busy: boolean;
+  deleting: boolean;
   error: string | null;
   onClose: () => void;
   onSave: (values: TodoTaskFormValues) => Promise<void>;
+  onDelete?: (taskId: string) => Promise<void>;
 };
 
 export function TaskFormModal({
@@ -38,12 +47,18 @@ export function TaskFormModal({
   departmentOptions,
   task,
   busy,
+  deleting,
   error,
   onClose,
   onSave,
+  onDelete,
 }: TaskFormModalProps) {
   const titleId = useId();
   const datalistId = useId();
+  const deleteTitleId = useId();
+  const deleteDescriptionId = useId();
+  const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement | null>(null);
   const [title, setTitle] = useState('');
   const [department, setDepartment] = useState('');
   const [description, setDescription] = useState('');
@@ -51,9 +66,16 @@ export function TaskFormModal({
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [deadlineDate, setDeadlineDate] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] =
+    useState(false);
+
+  const isSaving = busy;
+  const isDeleting = deleting;
+  const formLocked = isSaving || isDeleting;
 
   useEffect(() => {
     if (!open) {
+      setIsDeleteConfirmationOpen(false);
       return;
     }
     if (mode === 'edit' && task) {
@@ -72,12 +94,23 @@ export function TaskFormModal({
       setDeadlineDate('');
     }
     setLocalError(null);
+    setIsDeleteConfirmationOpen(false);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
   }, [open, mode, task]);
+
+  useEffect(() => {
+    if (!isDeleteConfirmationOpen) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      deleteCancelRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isDeleteConfirmationOpen]);
 
   const suggestions = useMemo(() => {
     const merged = new Set<string>([
@@ -111,7 +144,7 @@ export function TaskFormModal({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) {
+    if (formLocked || isDeleteConfirmationOpen) {
       return;
     }
     const trimmedTitle = title.trim();
@@ -135,9 +168,41 @@ export function TaskFormModal({
     }
   }
 
+  function openDeleteConfirmation() {
+    if (formLocked || mode !== 'edit' || !task?.id || !onDelete) {
+      return;
+    }
+    setLocalError(null);
+    setIsDeleteConfirmationOpen(true);
+  }
+
+  function closeDeleteConfirmation() {
+    if (isDeleting) {
+      return;
+    }
+    setIsDeleteConfirmationOpen(false);
+    window.requestAnimationFrame(() => {
+      deleteButtonRef.current?.focus();
+    });
+  }
+
+  async function confirmDelete() {
+    if (isDeleting || isSaving || !task?.id || !onDelete) {
+      return;
+    }
+    try {
+      await onDelete(task.id);
+      setIsDeleteConfirmationOpen(false);
+    } catch {
+      // Parent keeps Edit modal open and sets error.
+    }
+  }
+
   const displayError = localError ?? error;
   const heading = mode === 'edit' ? 'Edit Task' : 'Add Task';
-  const canSave = title.trim().length > 0 && !busy;
+  const canSave = title.trim().length > 0 && !formLocked;
+  const showDelete =
+    mode === 'edit' && Boolean(task?.id) && typeof onDelete === 'function';
 
   return createPortal(
     <div className="ops-modal todo-form-modal" role="presentation">
@@ -146,7 +211,7 @@ export function TaskFormModal({
         className="ops-modal__backdrop"
         aria-label="Close"
         onClick={() => {
-          if (!busy) {
+          if (!formLocked && !isDeleteConfirmationOpen) {
             onClose();
           }
         }}
@@ -165,7 +230,7 @@ export function TaskFormModal({
             type="button"
             className="ops-modal__close"
             aria-label="Close"
-            disabled={busy}
+            disabled={formLocked || isDeleteConfirmationOpen}
             onClick={onClose}
           >
             ×
@@ -185,7 +250,7 @@ export function TaskFormModal({
                   id="todo-task-title"
                   type="text"
                   value={title}
-                  disabled={busy}
+                  disabled={formLocked}
                   onChange={(event) => {
                     setTitle(event.target.value);
                     setLocalError(null);
@@ -200,7 +265,7 @@ export function TaskFormModal({
                   type="text"
                   list={datalistId}
                   value={department}
-                  disabled={busy}
+                  disabled={formLocked}
                   onChange={(event) => setDepartment(event.target.value)}
                 />
                 <datalist id={datalistId}>
@@ -216,12 +281,12 @@ export function TaskFormModal({
                   id="todo-task-description"
                   rows={3}
                   value={description}
-                  disabled={busy}
+                  disabled={formLocked}
                   onChange={(event) => setDescription(event.target.value)}
                 />
               </div>
 
-              <fieldset className="todo-assignees">
+              <fieldset className="todo-assignees" disabled={formLocked}>
                 <legend>Assign To</legend>
                 {employees.length === 0 ? (
                   <p className="todo-empty">
@@ -237,7 +302,7 @@ export function TaskFormModal({
                             <input
                               type="checkbox"
                               checked={checked}
-                              disabled={busy}
+                              disabled={formLocked}
                               onChange={() => toggleAssignee(employee.id)}
                             />
                             <span>{employee.name}</span>
@@ -266,7 +331,7 @@ export function TaskFormModal({
                   id="todo-task-deadline"
                   type="date"
                   value={deadlineDate}
-                  disabled={busy}
+                  disabled={formLocked}
                   onChange={(event) => setDeadlineDate(event.target.value)}
                 />
               </div>
@@ -277,7 +342,7 @@ export function TaskFormModal({
                   id="todo-task-notes"
                   rows={3}
                   value={notes}
-                  disabled={busy}
+                  disabled={formLocked}
                   onChange={(event) => setNotes(event.target.value)}
                 />
               </div>
@@ -290,25 +355,104 @@ export function TaskFormModal({
             </div>
           </div>
 
-          <div className="ops-modal__footer">
-            <button
-              type="button"
-              className="ops-btn ops-btn--ghost"
-              disabled={busy}
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="ops-btn ops-btn--primary"
-              disabled={!canSave}
-            >
-              {busy ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Save Task'}
-            </button>
+          <div
+            className={`ops-modal__footer${
+              showDelete ? ' todo-task-form-footer--with-delete' : ''
+            }`}
+          >
+            {showDelete ? (
+              <button
+                ref={deleteButtonRef}
+                type="button"
+                className="ops-btn todo-delete-task-button"
+                disabled={formLocked}
+                aria-label={`Delete task: ${task?.title ?? title}`}
+                onClick={openDeleteConfirmation}
+              >
+                Delete Task
+              </button>
+            ) : null}
+            <div className="todo-task-form-footer__actions">
+              <button
+                type="button"
+                className="ops-btn ops-btn--ghost"
+                disabled={formLocked}
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ops-btn ops-btn--primary"
+                disabled={!canSave}
+              >
+                {isSaving
+                  ? 'Saving...'
+                  : mode === 'edit'
+                    ? 'Save Changes'
+                    : 'Save Task'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
+
+      {isDeleteConfirmationOpen && task ? (
+        <div className="todo-delete-confirmation" role="presentation">
+          <button
+            type="button"
+            className="ops-modal__backdrop todo-delete-confirmation__backdrop"
+            aria-label="Close delete confirmation"
+            disabled={isDeleting}
+            onClick={closeDeleteConfirmation}
+          />
+          <div
+            className="ops-modal__dialog todo-delete-confirmation__dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={deleteTitleId}
+            aria-describedby={deleteDescriptionId}
+          >
+            <div className="ops-modal__header">
+              <h2 id={deleteTitleId} className="ops-modal__title">
+                Delete Task?
+              </h2>
+            </div>
+            <div className="ops-modal__body">
+              <p id={deleteDescriptionId}>
+                This task will be permanently removed for everyone assigned to
+                it. This action cannot be undone.
+              </p>
+              <p className="todo-delete-confirmation__task">
+                <span className="todo-delete-confirmation__task-label">
+                  Task:
+                </span>{' '}
+                <strong>{task.title}</strong>
+              </p>
+            </div>
+            <div className="ops-modal__footer">
+              <button
+                ref={deleteCancelRef}
+                type="button"
+                className="ops-btn ops-btn--ghost"
+                disabled={isDeleting}
+                onClick={closeDeleteConfirmation}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ops-btn todo-delete-task-button"
+                disabled={isDeleting}
+                aria-label={`Confirm delete task: ${task.title}`}
+                onClick={() => void confirmDelete()}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>,
     document.body,
   );

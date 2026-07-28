@@ -1,4 +1,5 @@
 import type { TodoEmployee, TodoTask } from '../types/todo';
+import { COMPLETION_DATE_UNKNOWN } from '../types/todo';
 
 /** Local calendar YYYY-MM-DD (no UTC day shift). */
 export function localDateYmd(date = new Date()): string {
@@ -26,6 +27,9 @@ export function formatLocalDateLabel(ymd: string): string {
 }
 
 export function formatLocalDateTime(iso: string): string {
+  if (!iso || iso === COMPLETION_DATE_UNKNOWN) {
+    return 'Date not recorded';
+  }
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
     return iso;

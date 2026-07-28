@@ -10,9 +10,11 @@ import {
   addTodoEmployee,
   completeTodoTask,
   createTodoTask,
+  deleteTodoTask,
   loadTodoEmployees,
   loadTodoTasks,
   restoreTodoTask,
+  updateTodoEmployee,
   updateTodoTask,
 } from '../../services/todoDataService';
 import { GitHubApiError } from '../../services/githubDataService';
@@ -358,6 +360,7 @@ export function TodoPage({
     | { open: true; mode: 'create' | 'edit'; task: TodoTask | null }
   >({ open: false });
   const [taskBusy, setTaskBusy] = useState(false);
+  const [taskDeleting, setTaskDeleting] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [mutatingKeys, setMutatingKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
@@ -564,8 +567,42 @@ export function TodoPage({
     }
   }
 
+  async function handleRenamePerson(employeeId: string, name: string) {
+    if (!keys || mutationsBlocked) {
+      throw new Error('Unable to update person.');
+    }
+    setPeopleError(null);
+    try {
+      loadGeneration.current += 1;
+      const next = await updateTodoEmployee(
+        employeeId,
+        { name },
+        keys.employeesKey,
+      );
+      setEmployees(next);
+    } catch (err) {
+      if (err instanceof TodoCryptoError) {
+        handleCryptoFailure();
+        throw err;
+      }
+      if (err instanceof GitHubApiError && err.code === 'unauthorized') {
+        onAuthFailureRef.current('GitHub access expired. Enter a new token.');
+        throw err;
+      }
+      throw err instanceof Error
+        ? err
+        : new Error('Unable to update person.');
+    }
+  }
+
   async function handleSaveTask(values: TodoTaskFormValues) {
-    if (!keys || mutationsBlocked || !taskModal.open || taskBusy) {
+    if (
+      !keys ||
+      mutationsBlocked ||
+      !taskModal.open ||
+      taskBusy ||
+      taskDeleting
+    ) {
       return;
     }
     setTaskBusy(true);
@@ -607,6 +644,33 @@ export function TodoPage({
       throw err instanceof Error ? err : new Error('Save failed.');
     } finally {
       setTaskBusy(false);
+    }
+  }
+
+  async function handleDeleteTask(taskId: string) {
+    if (!keys || mutationsBlocked || taskBusy || taskDeleting) {
+      return;
+    }
+    setTaskDeleting(true);
+    setTaskError(null);
+    try {
+      loadGeneration.current += 1;
+      const savedTasks = await deleteTodoTask(taskId, keys.tasksKey);
+      setTasks(savedTasks);
+      setTaskModal({ open: false });
+    } catch (err) {
+      if (err instanceof TodoCryptoError) {
+        handleCryptoFailure();
+        throw err;
+      }
+      if (err instanceof GitHubApiError && err.code === 'unauthorized') {
+        onAuthFailureRef.current('GitHub access expired. Enter a new token.');
+        throw err;
+      }
+      setTaskError('Unable to delete task.');
+      throw err instanceof Error ? err : new Error('Unable to delete task.');
+    } finally {
+      setTaskDeleting(false);
     }
   }
 
@@ -895,6 +959,7 @@ export function TodoPage({
         error={peopleError}
         onClose={() => setPeopleOpen(false)}
         onAdd={handleAddPerson}
+        onRename={handleRenamePerson}
       />
 
       <TaskFormModal
@@ -904,9 +969,21 @@ export function TodoPage({
         departmentOptions={departmentOptions}
         task={taskModal.open ? taskModal.task : null}
         busy={taskBusy}
+        deleting={taskDeleting}
         error={taskError}
-        onClose={() => setTaskModal({ open: false })}
+        onClose={() => {
+          if (taskBusy || taskDeleting) {
+            return;
+          }
+          setTaskError(null);
+          setTaskModal({ open: false });
+        }}
         onSave={handleSaveTask}
+        onDelete={
+          taskModal.open && taskModal.mode === 'edit'
+            ? handleDeleteTask
+            : undefined
+        }
       />
     </div>
   );

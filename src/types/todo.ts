@@ -1,5 +1,8 @@
 export const UNASSIGNED_COMPLETION_KEY = '__unassigned__';
 
+/** Marker for completed without a known calendar date (legacy spreadsheet null). */
+export const COMPLETION_DATE_UNKNOWN = 'unknown';
+
 export type TodoEmployee = {
   id: string;
   name: string;
