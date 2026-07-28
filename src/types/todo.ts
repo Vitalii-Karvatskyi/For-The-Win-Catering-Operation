@@ -1,3 +1,5 @@
+export const UNASSIGNED_COMPLETION_KEY = '__unassigned__';
+
 export type TodoEmployee = {
   id: string;
   name: string;
@@ -9,23 +11,19 @@ export type TodoTask = {
   title: string;
   department?: string;
   description?: string;
-  amountOrDueDate?: string;
-  involvement?: string;
   notes?: string;
   assigneeIds: string[];
   createdAt: string;
   updatedAt: string;
   deadlineDate?: string;
-  completed: boolean;
-  completedAt?: string | null;
+  /** Per-assignee completion timestamps (ISO). Key may be employee id or UNASSIGNED_COMPLETION_KEY. */
+  completedAtByAssignee: Record<string, string>;
 };
 
 export type TodoTaskFormValues = {
   title: string;
   department: string;
   description: string;
-  amountOrDueDate: string;
-  involvement: string;
   notes: string;
   assigneeIds: string[];
   deadlineDate: string;

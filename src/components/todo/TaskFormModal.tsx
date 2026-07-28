@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   TodoEmployee,
   TodoTask,
@@ -46,8 +47,6 @@ export function TaskFormModal({
   const [title, setTitle] = useState('');
   const [department, setDepartment] = useState('');
   const [description, setDescription] = useState('');
-  const [amountOrDueDate, setAmountOrDueDate] = useState('');
-  const [involvement, setInvolvement] = useState('');
   const [notes, setNotes] = useState('');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [deadlineDate, setDeadlineDate] = useState('');
@@ -61,8 +60,6 @@ export function TaskFormModal({
       setTitle(task.title);
       setDepartment(task.department ?? '');
       setDescription(task.description ?? '');
-      setAmountOrDueDate(task.amountOrDueDate ?? '');
-      setInvolvement(task.involvement ?? '');
       setNotes(task.notes ?? '');
       setAssigneeIds([...task.assigneeIds]);
       setDeadlineDate(task.deadlineDate ?? '');
@@ -70,8 +67,6 @@ export function TaskFormModal({
       setTitle('');
       setDepartment('');
       setDescription('');
-      setAmountOrDueDate('');
-      setInvolvement('');
       setNotes('');
       setAssigneeIds([]);
       setDeadlineDate('');
@@ -108,8 +103,6 @@ export function TaskFormModal({
     setTitle('');
     setDepartment('');
     setDescription('');
-    setAmountOrDueDate('');
-    setInvolvement('');
     setNotes('');
     setAssigneeIds([]);
     setDeadlineDate('');
@@ -132,8 +125,6 @@ export function TaskFormModal({
         title: trimmedTitle,
         department: department.trim(),
         description: description.trim(),
-        amountOrDueDate: amountOrDueDate.trim(),
-        involvement: involvement.trim(),
         notes: notes.trim(),
         assigneeIds,
         deadlineDate: deadlineDate.trim(),
@@ -148,8 +139,8 @@ export function TaskFormModal({
   const heading = mode === 'edit' ? 'Edit Task' : 'Add Task';
   const canSave = title.trim().length > 0 && !busy;
 
-  return (
-    <div className="ops-modal" role="presentation">
+  return createPortal(
+    <div className="ops-modal todo-form-modal" role="presentation">
       <button
         type="button"
         className="ops-modal__backdrop"
@@ -226,28 +217,6 @@ export function TaskFormModal({
                 value={description}
                 disabled={busy}
                 onChange={(event) => setDescription(event.target.value)}
-              />
-            </div>
-
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-amount">Amount / Due Date</label>
-              <input
-                id="todo-task-amount"
-                type="text"
-                value={amountOrDueDate}
-                disabled={busy}
-                onChange={(event) => setAmountOrDueDate(event.target.value)}
-              />
-            </div>
-
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-involvement">Involvement</label>
-              <textarea
-                id="todo-task-involvement"
-                rows={2}
-                value={involvement}
-                disabled={busy}
-                onChange={(event) => setInvolvement(event.target.value)}
               />
             </div>
 
@@ -338,6 +307,7 @@ export function TaskFormModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

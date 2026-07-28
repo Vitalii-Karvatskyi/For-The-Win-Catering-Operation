@@ -5,6 +5,7 @@ import type {
   TodoTask,
   TodoTaskFormValues,
 } from '../../types/todo';
+import { UNASSIGNED_COMPLETION_KEY } from '../../types/todo';
 import {
   addTodoEmployee,
   completeTodoTask,
@@ -30,8 +31,6 @@ import { TaskFormModal } from './TaskFormModal';
 import { ftwAssets } from '../../config/ftwAssets';
 import '../../styles/todo.css';
 
-const UNASSIGNED_KEY = 'unassigned';
-
 type TodoPageProps = {
   unlocked: boolean;
   keys: TodoCryptoKeys | null;
@@ -42,23 +41,23 @@ type TodoPageProps = {
 
 type LoadPhase = 'idle' | 'loading' | 'ready' | 'error' | 'decrypt-error';
 
+function operationKey(taskId: string, completionKey: string): string {
+  return `${taskId}:${completionKey}`;
+}
+
 function buildTaskFromForm(values: TodoTaskFormValues): Omit<
   TodoTask,
-  'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'
+  'id' | 'createdAt' | 'updatedAt' | 'completedAtByAssignee'
 > {
   const task: Omit<
     TodoTask,
-    'id' | 'createdAt' | 'updatedAt' | 'completed' | 'completedAt'
+    'id' | 'createdAt' | 'updatedAt' | 'completedAtByAssignee'
   > = {
     title: values.title.trim(),
     assigneeIds: values.assigneeIds,
   };
   if (values.department.trim()) task.department = values.department.trim();
   if (values.description.trim()) task.description = values.description.trim();
-  if (values.amountOrDueDate.trim()) {
-    task.amountOrDueDate = values.amountOrDueDate.trim();
-  }
-  if (values.involvement.trim()) task.involvement = values.involvement.trim();
   if (values.notes.trim()) task.notes = values.notes.trim();
   if (values.deadlineDate.trim()) task.deadlineDate = values.deadlineDate.trim();
   return task;
@@ -75,18 +74,20 @@ function statusClassName(label: string): string {
 type TaskCardProps = {
   task: TodoTask;
   employees: TodoEmployee[];
-  completed?: boolean;
+  completionKey: string;
+  completed: boolean;
   busy: boolean;
   mutationsBlocked: boolean;
   onEdit: (task: TodoTask) => void;
-  onComplete: (taskId: string) => void;
-  onRestore: (taskId: string) => void;
+  onComplete: (taskId: string, completionKey: string) => void;
+  onRestore: (taskId: string, completionKey: string) => void;
 };
 
 function TodoTaskCard({
   task,
   employees,
-  completed = false,
+  completionKey,
+  completed,
   busy,
   mutationsBlocked,
   onEdit,
@@ -98,6 +99,7 @@ function TodoTaskCard({
     ? 'Completed'
     : activeTaskStatusLabel(task.deadlineDate);
   const shared = task.assigneeIds.length > 1;
+  const completedAt = task.completedAtByAssignee[completionKey];
 
   return (
     <article
@@ -131,7 +133,7 @@ function TodoTaskCard({
               className="ops-btn ops-btn--secondary"
               disabled={busy || mutationsBlocked}
               aria-label={`Restore task: ${task.title}`}
-              onClick={() => onRestore(task.id)}
+              onClick={() => onRestore(task.id, completionKey)}
             >
               {busy ? 'Restoring...' : 'Restore'}
             </button>
@@ -151,7 +153,7 @@ function TodoTaskCard({
                 className="ops-btn ops-btn--primary"
                 disabled={busy || mutationsBlocked}
                 aria-label={`Complete task: ${task.title}`}
-                onClick={() => onComplete(task.id)}
+                onClick={() => onComplete(task.id, completionKey)}
               >
                 {busy ? 'Completing...' : 'Complete'}
               </button>
@@ -165,18 +167,6 @@ function TodoTaskCard({
           <p className="todo-task-card__detail">
             <span>Description</span>
             {task.description}
-          </p>
-        ) : null}
-        {task.amountOrDueDate?.trim() ? (
-          <p className="todo-task-card__detail">
-            <span>Amount / Due Date</span>
-            {task.amountOrDueDate}
-          </p>
-        ) : null}
-        {task.involvement?.trim() ? (
-          <p className="todo-task-card__detail">
-            <span>Involvement</span>
-            {task.involvement}
           </p>
         ) : null}
         {task.notes?.trim() ? (
@@ -201,9 +191,9 @@ function TodoTaskCard({
           </div>
         </div>
 
-        {completed && task.completedAt ? (
+        {completed && completedAt ? (
           <p className="todo-task-card__completed-at">
-            Completed: {formatLocalDateTime(task.completedAt)}
+            Completed: {formatLocalDateTime(completedAt)}
           </p>
         ) : null}
       </div>
@@ -216,16 +206,17 @@ type PersonSectionProps = {
   title: string;
   subtitle?: string;
   initial?: string;
+  completionKey: string;
   activeTasks: TodoTask[];
   completedTasks: TodoTask[];
   employees: TodoEmployee[];
   expanded: boolean;
   onToggleCompleted: () => void;
-  mutatingTaskIds: ReadonlySet<string>;
+  mutatingKeys: ReadonlySet<string>;
   mutationsBlocked: boolean;
   onEdit: (task: TodoTask) => void;
-  onComplete: (taskId: string) => void;
-  onRestore: (taskId: string) => void;
+  onComplete: (taskId: string, completionKey: string) => void;
+  onRestore: (taskId: string, completionKey: string) => void;
 };
 
 function PersonSection({
@@ -233,12 +224,13 @@ function PersonSection({
   title,
   subtitle,
   initial,
+  completionKey,
   activeTasks,
   completedTasks,
   employees,
   expanded,
   onToggleCompleted,
-  mutatingTaskIds,
+  mutatingKeys,
   mutationsBlocked,
   onEdit,
   onComplete,
@@ -292,7 +284,9 @@ function PersonSection({
                 key={`${sectionKey}-active-${task.id}`}
                 task={task}
                 employees={employees}
-                busy={mutatingTaskIds.has(task.id)}
+                completionKey={completionKey}
+                completed={false}
+                busy={mutatingKeys.has(operationKey(task.id, completionKey))}
                 mutationsBlocked={mutationsBlocked}
                 onEdit={onEdit}
                 onComplete={onComplete}
@@ -325,8 +319,9 @@ function PersonSection({
                     key={`${sectionKey}-done-${task.id}`}
                     task={task}
                     employees={employees}
+                    completionKey={completionKey}
                     completed
-                    busy={mutatingTaskIds.has(task.id)}
+                    busy={mutatingKeys.has(operationKey(task.id, completionKey))}
                     mutationsBlocked={mutationsBlocked}
                     onEdit={onEdit}
                     onComplete={onComplete}
@@ -353,7 +348,7 @@ export function TodoPage({
   const [employees, setEmployees] = useState<TodoEmployee[]>([]);
   const [tasks, setTasks] = useState<TodoTask[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [peopleBusy, setPeopleBusy] = useState(false);
@@ -364,7 +359,7 @@ export function TodoPage({
   >({ open: false });
   const [taskBusy, setTaskBusy] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
-  const [mutatingTaskIds, setMutatingTaskIds] = useState<ReadonlySet<string>>(
+  const [mutatingKeys, setMutatingKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
   const [expandedCompletedGroups, setExpandedCompletedGroups] = useState<
@@ -383,7 +378,7 @@ export function TodoPage({
     setTasks([]);
     setPhase('idle');
     setError(null);
-    setBanner(null);
+    setActionError(null);
     setPeopleOpen(false);
     setTaskModal({ open: false });
     setExpandedCompletedGroups({});
@@ -408,6 +403,7 @@ export function TodoPage({
     loadGeneration.current = generation;
     setPhase('loading');
     setError(null);
+    setActionError(null);
     setMutationsBlocked(false);
 
     try {
@@ -475,7 +471,11 @@ export function TodoPage({
   const unassignedActive = useMemo(
     () =>
       sortActiveTasks(
-        tasks.filter((task) => !task.completed && task.assigneeIds.length === 0),
+        tasks.filter(
+          (task) =>
+            task.assigneeIds.length === 0 &&
+            !task.completedAtByAssignee[UNASSIGNED_COMPLETION_KEY],
+        ),
       ),
     [tasks],
   );
@@ -483,7 +483,12 @@ export function TodoPage({
   const unassignedCompleted = useMemo(
     () =>
       sortCompletedTasks(
-        tasks.filter((task) => task.completed && task.assigneeIds.length === 0),
+        tasks.filter(
+          (task) =>
+            task.assigneeIds.length === 0 &&
+            Boolean(task.completedAtByAssignee[UNASSIGNED_COMPLETION_KEY]),
+        ),
+        UNASSIGNED_COMPLETION_KEY,
       ),
     [tasks],
   );
@@ -491,7 +496,9 @@ export function TodoPage({
   function employeeActiveTasks(employeeId: string): TodoTask[] {
     return sortActiveTasks(
       tasks.filter(
-        (task) => !task.completed && task.assigneeIds.includes(employeeId),
+        (task) =>
+          task.assigneeIds.includes(employeeId) &&
+          !task.completedAtByAssignee[employeeId],
       ),
     );
   }
@@ -499,8 +506,11 @@ export function TodoPage({
   function employeeCompletedTasks(employeeId: string): TodoTask[] {
     return sortCompletedTasks(
       tasks.filter(
-        (task) => task.completed && task.assigneeIds.includes(employeeId),
+        (task) =>
+          task.assigneeIds.includes(employeeId) &&
+          Boolean(task.completedAtByAssignee[employeeId]),
       ),
+      employeeId,
     );
   }
 
@@ -516,7 +526,7 @@ export function TodoPage({
       return;
     }
     setRefreshBusy(true);
-    setBanner(null);
+    setActionError(null);
     try {
       await loadData();
     } finally {
@@ -569,13 +579,11 @@ export function TodoPage({
           ...fields,
           createdAt: now,
           updatedAt: now,
-          completed: false,
-          completedAt: null,
+          completedAtByAssignee: {},
         };
         loadGeneration.current += 1;
         const savedTasks = await createTodoTask(task, keys.tasksKey);
         setTasks(savedTasks);
-        setBanner('Task added.');
       } else if (taskModal.task) {
         loadGeneration.current += 1;
         const savedTasks = await updateTodoTask(
@@ -584,7 +592,6 @@ export function TodoPage({
           keys.tasksKey,
         );
         setTasks(savedTasks);
-        setBanner('Task updated.');
       }
       setTaskModal({ open: false });
     } catch (err) {
@@ -603,14 +610,23 @@ export function TodoPage({
     }
   }
 
-  async function handleComplete(taskId: string) {
-    if (!keys || mutationsBlocked || mutatingTaskIds.has(taskId)) {
+  async function handleComplete(taskId: string, completionKey: string) {
+    if (!keys || mutationsBlocked) {
       return;
     }
-    setMutatingTaskIds((current) => new Set(current).add(taskId));
+    const key = operationKey(taskId, completionKey);
+    if (mutatingKeys.has(key)) {
+      return;
+    }
+    setMutatingKeys((current) => new Set(current).add(key));
+    setActionError(null);
     try {
       loadGeneration.current += 1;
-      const savedTasks = await completeTodoTask(taskId, keys.tasksKey);
+      const savedTasks = await completeTodoTask(
+        taskId,
+        completionKey,
+        keys.tasksKey,
+      );
       setTasks(savedTasks);
     } catch (err) {
       if (err instanceof TodoCryptoError) {
@@ -621,24 +637,35 @@ export function TodoPage({
         onAuthFailureRef.current('GitHub access expired. Enter a new token.');
         return;
       }
-      setBanner(err instanceof Error ? err.message : 'Unable to complete task.');
+      setActionError(
+        err instanceof Error ? err.message : 'Unable to complete task.',
+      );
     } finally {
-      setMutatingTaskIds((current) => {
+      setMutatingKeys((current) => {
         const next = new Set(current);
-        next.delete(taskId);
+        next.delete(key);
         return next;
       });
     }
   }
 
-  async function handleRestore(taskId: string) {
-    if (!keys || mutationsBlocked || mutatingTaskIds.has(taskId)) {
+  async function handleRestore(taskId: string, completionKey: string) {
+    if (!keys || mutationsBlocked) {
       return;
     }
-    setMutatingTaskIds((current) => new Set(current).add(taskId));
+    const key = operationKey(taskId, completionKey);
+    if (mutatingKeys.has(key)) {
+      return;
+    }
+    setMutatingKeys((current) => new Set(current).add(key));
+    setActionError(null);
     try {
       loadGeneration.current += 1;
-      const savedTasks = await restoreTodoTask(taskId, keys.tasksKey);
+      const savedTasks = await restoreTodoTask(
+        taskId,
+        completionKey,
+        keys.tasksKey,
+      );
       setTasks(savedTasks);
     } catch (err) {
       if (err instanceof TodoCryptoError) {
@@ -649,11 +676,13 @@ export function TodoPage({
         onAuthFailureRef.current('GitHub access expired. Enter a new token.');
         return;
       }
-      setBanner(err instanceof Error ? err.message : 'Unable to restore task.');
+      setActionError(
+        err instanceof Error ? err.message : 'Unable to restore task.',
+      );
     } finally {
-      setMutatingTaskIds((current) => {
+      setMutatingKeys((current) => {
         const next = new Set(current);
-        next.delete(taskId);
+        next.delete(key);
         return next;
       });
     }
@@ -733,13 +762,13 @@ export function TodoPage({
 
       <main className="ops-main">
         <div className="ops-container">
-          {banner ? (
-            <div className="ops-banner" role="status">
-              <p>{banner}</p>
+          {actionError ? (
+            <div className="ops-banner ops-banner--error" role="alert">
+              <p>{actionError}</p>
               <button
                 type="button"
                 className="ops-btn ops-btn--ghost"
-                onClick={() => setBanner(null)}
+                onClick={() => setActionError(null)}
               >
                 Dismiss
               </button>
@@ -806,21 +835,22 @@ export function TodoPage({
                       sectionKey={employee.id}
                       title={employee.name}
                       initial={employee.name.trim().charAt(0).toUpperCase() || '?'}
+                      completionKey={employee.id}
                       activeTasks={active}
                       completedTasks={completed}
                       employees={employees}
                       expanded={Boolean(expandedCompletedGroups[employee.id])}
                       onToggleCompleted={() => toggleCompletedGroup(employee.id)}
-                      mutatingTaskIds={mutatingTaskIds}
+                      mutatingKeys={mutatingKeys}
                       mutationsBlocked={mutationsBlocked}
                       onEdit={(task) =>
                         setTaskModal({ open: true, mode: 'edit', task })
                       }
-                      onComplete={(taskId) => {
-                        void handleComplete(taskId);
+                      onComplete={(taskId, key) => {
+                        void handleComplete(taskId, key);
                       }}
-                      onRestore={(taskId) => {
-                        void handleRestore(taskId);
+                      onRestore={(taskId, key) => {
+                        void handleRestore(taskId, key);
                       }}
                     />
                   );
@@ -828,24 +858,29 @@ export function TodoPage({
               )}
 
               <PersonSection
-                sectionKey={UNASSIGNED_KEY}
+                sectionKey={UNASSIGNED_COMPLETION_KEY}
                 title="Unassigned"
                 subtitle="Tasks not assigned to anyone."
+                completionKey={UNASSIGNED_COMPLETION_KEY}
                 activeTasks={unassignedActive}
                 completedTasks={unassignedCompleted}
                 employees={employees}
-                expanded={Boolean(expandedCompletedGroups[UNASSIGNED_KEY])}
-                onToggleCompleted={() => toggleCompletedGroup(UNASSIGNED_KEY)}
-                mutatingTaskIds={mutatingTaskIds}
+                expanded={Boolean(
+                  expandedCompletedGroups[UNASSIGNED_COMPLETION_KEY],
+                )}
+                onToggleCompleted={() =>
+                  toggleCompletedGroup(UNASSIGNED_COMPLETION_KEY)
+                }
+                mutatingKeys={mutatingKeys}
                 mutationsBlocked={mutationsBlocked}
                 onEdit={(task) =>
                   setTaskModal({ open: true, mode: 'edit', task })
                 }
-                onComplete={(taskId) => {
-                  void handleComplete(taskId);
+                onComplete={(taskId, key) => {
+                  void handleComplete(taskId, key);
                 }}
-                onRestore={(taskId) => {
-                  void handleRestore(taskId);
+                onRestore={(taskId, key) => {
+                  void handleRestore(taskId, key);
                 }}
               />
             </section>

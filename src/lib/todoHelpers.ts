@@ -101,10 +101,13 @@ export function sortActiveTasks(tasks: TodoTask[]): TodoTask[] {
   });
 }
 
-export function sortCompletedTasks(tasks: TodoTask[]): TodoTask[] {
+export function sortCompletedTasks(
+  tasks: TodoTask[],
+  completionKey: string,
+): TodoTask[] {
   return [...tasks].sort((a, b) => {
-    const aMs = a.completedAt ? createdAtMs(a.completedAt) : 0;
-    const bMs = b.completedAt ? createdAtMs(b.completedAt) : 0;
+    const aMs = createdAtMs(a.completedAtByAssignee[completionKey] ?? '');
+    const bMs = createdAtMs(b.completedAtByAssignee[completionKey] ?? '');
     return bMs - aMs;
   });
 }

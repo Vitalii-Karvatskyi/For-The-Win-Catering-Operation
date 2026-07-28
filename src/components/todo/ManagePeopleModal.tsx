@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type { TodoEmployee } from '../../types/todo';
 
 type ManagePeopleModalProps = {
@@ -64,8 +65,8 @@ export function ManagePeopleModal({
 
   const displayError = localError ?? error;
 
-  return (
-    <div className="ops-modal" role="presentation">
+  return createPortal(
+    <div className="ops-modal todo-form-modal" role="presentation">
       <button
         type="button"
         className="ops-modal__backdrop"
@@ -148,6 +149,7 @@ export function ManagePeopleModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

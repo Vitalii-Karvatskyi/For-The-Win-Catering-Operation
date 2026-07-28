@@ -3,6 +3,7 @@ import type {
   TodoEmployee,
   TodoTask,
 } from '../types/todo';
+import { UNASSIGNED_COMPLETION_KEY } from '../types/todo';
 import {
   GitHubApiError,
   putJsonFile,
@@ -17,6 +18,7 @@ import {
 
 export const TODO_EMPLOYEES_PATH = 'data/todo-employees.enc.json';
 export const TODO_TASKS_PATH = 'data/todo-tasks.enc.json';
+export { UNASSIGNED_COMPLETION_KEY };
 
 function todoConflictError(status: number | null): GitHubApiError {
   return new GitHubApiError(
@@ -34,6 +36,53 @@ function optionalString(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseCompletedAtByAssignee(
+  raw: Record<string, unknown>,
+  assigneeIds: string[],
+): Record<string, string> {
+  if (isPlainRecord(raw.completedAtByAssignee)) {
+    const next: Record<string, string> = {};
+    for (const [key, value] of Object.entries(raw.completedAtByAssignee)) {
+      if (typeof key === 'string' && key && typeof value === 'string' && value) {
+        next[key] = value;
+      }
+    }
+    return next;
+  }
+
+  if (raw.completed === true) {
+    const timestamp =
+      (typeof raw.completedAt === 'string' && raw.completedAt) ||
+      (typeof raw.updatedAt === 'string' && raw.updatedAt) ||
+      (typeof raw.createdAt === 'string' && raw.createdAt) ||
+      new Date().toISOString();
+
+    if (assigneeIds.length > 0) {
+      return Object.fromEntries(assigneeIds.map((id) => [id, timestamp]));
+    }
+    return { [UNASSIGNED_COMPLETION_KEY]: timestamp };
+  }
+
+  return {};
+}
+
+function pruneCompletionsForAssignees(
+  completedAtByAssignee: Record<string, string>,
+  assigneeIds: string[],
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(completedAtByAssignee).filter(([key]) =>
+      assigneeIds.length === 0
+        ? key === UNASSIGNED_COMPLETION_KEY
+        : assigneeIds.includes(key),
+    ),
+  );
+}
+
 export function normalizeTodoTask(value: unknown): TodoTask {
   if (!value || typeof value !== 'object') {
     throw new TodoCryptoError('Encrypted To Do tasks data is invalid.', 'corrupt');
@@ -48,22 +97,10 @@ export function normalizeTodoTask(value: unknown): TodoTask {
   if (typeof raw.createdAt !== 'string' || typeof raw.updatedAt !== 'string') {
     throw new TodoCryptoError('Encrypted To Do tasks data is invalid.', 'corrupt');
   }
-  if (typeof raw.completed !== 'boolean') {
-    throw new TodoCryptoError('Encrypted To Do tasks data is invalid.', 'corrupt');
-  }
 
   const assigneeIds = Array.isArray(raw.assigneeIds)
     ? raw.assigneeIds.filter((id): id is string => typeof id === 'string')
     : [];
-
-  let completedAt: string | null | undefined;
-  if (raw.completedAt === null) {
-    completedAt = null;
-  } else if (typeof raw.completedAt === 'string') {
-    completedAt = raw.completedAt;
-  } else {
-    completedAt = undefined;
-  }
 
   const task: TodoTask = {
     id: raw.id,
@@ -71,7 +108,7 @@ export function normalizeTodoTask(value: unknown): TodoTask {
     assigneeIds,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
-    completed: raw.completed,
+    completedAtByAssignee: parseCompletedAtByAssignee(raw, assigneeIds),
   };
 
   const department = optionalString(raw.department);
@@ -80,21 +117,13 @@ export function normalizeTodoTask(value: unknown): TodoTask {
   const description = optionalString(raw.description);
   if (description) task.description = description;
 
-  const amountOrDueDate = optionalString(raw.amountOrDueDate);
-  if (amountOrDueDate) task.amountOrDueDate = amountOrDueDate;
-
-  const involvement = optionalString(raw.involvement);
-  if (involvement) task.involvement = involvement;
-
   const notes = optionalString(raw.notes);
   if (notes) task.notes = notes;
 
   const deadlineDate = optionalString(raw.deadlineDate);
   if (deadlineDate) task.deadlineDate = deadlineDate;
 
-  if (completedAt !== undefined) {
-    task.completedAt = completedAt;
-  }
+  // Legacy amountOrDueDate / involvement / completed / completedAt are ignored on purpose.
 
   return task;
 }
@@ -372,12 +401,14 @@ export async function createTodoTask(
   key: CryptoKey,
   token?: string,
 ): Promise<TodoTask[]> {
-  const normalized = normalizeTodoTask(task);
+  const normalized = normalizeTodoTask({
+    ...task,
+    completedAtByAssignee: task.completedAtByAssignee ?? {},
+  });
   return mutateEncryptedTasks(
     key,
     'Add To Do task',
     (latestTasks) => {
-      // Idempotent on conflict retry — never replace the full list with [newTask].
       if (latestTasks.some((item) => item.id === normalized.id)) {
         return latestTasks;
       }
@@ -393,8 +424,6 @@ export type TodoTaskUpdateFields = Partial<
     | 'title'
     | 'department'
     | 'description'
-    | 'amountOrDueDate'
-    | 'involvement'
     | 'notes'
     | 'assigneeIds'
     | 'deadlineDate'
@@ -416,14 +445,17 @@ export async function updateTodoTask(
         throw new GitHubApiError('Task was not found.', null, 'not-found');
       }
       const existing = current[index];
+      const nextAssigneeIds = changes.assigneeIds ?? existing.assigneeIds;
       const nextTask: TodoTask = {
         id: existing.id,
         title: changes.title ?? existing.title,
-        assigneeIds: changes.assigneeIds ?? existing.assigneeIds,
+        assigneeIds: nextAssigneeIds,
         createdAt: existing.createdAt,
         updatedAt: new Date().toISOString(),
-        completed: existing.completed,
-        completedAt: existing.completedAt,
+        completedAtByAssignee: pruneCompletionsForAssignees(
+          existing.completedAtByAssignee,
+          nextAssigneeIds,
+        ),
       };
 
       const department =
@@ -437,18 +469,6 @@ export async function updateTodoTask(
           ? existing.description
           : optionalString(changes.description);
       if (description) nextTask.description = description;
-
-      const amountOrDueDate =
-        changes.amountOrDueDate === undefined
-          ? existing.amountOrDueDate
-          : optionalString(changes.amountOrDueDate);
-      if (amountOrDueDate) nextTask.amountOrDueDate = amountOrDueDate;
-
-      const involvement =
-        changes.involvement === undefined
-          ? existing.involvement
-          : optionalString(changes.involvement);
-      if (involvement) nextTask.involvement = involvement;
 
       const notes =
         changes.notes === undefined ? existing.notes : optionalString(changes.notes);
@@ -468,8 +488,32 @@ export async function updateTodoTask(
   );
 }
 
+function assertCompletionKeyMatchesTask(
+  task: TodoTask,
+  completionKey: string,
+): void {
+  if (completionKey === UNASSIGNED_COMPLETION_KEY) {
+    if (task.assigneeIds.length !== 0) {
+      throw new GitHubApiError(
+        'Unassigned completion is only allowed for tasks with no assignees.',
+        null,
+        'invalid',
+      );
+    }
+    return;
+  }
+  if (!task.assigneeIds.includes(completionKey)) {
+    throw new GitHubApiError(
+      'This person is not assigned to the task.',
+      null,
+      'invalid',
+    );
+  }
+}
+
 export async function completeTodoTask(
   taskId: string,
+  completionKey: string,
   key: CryptoKey,
   token?: string,
 ): Promise<TodoTask[]> {
@@ -482,12 +526,15 @@ export async function completeTodoTask(
         throw new GitHubApiError('Task was not found.', null, 'not-found');
       }
       const existing = current[index];
+      assertCompletionKeyMatchesTask(existing, completionKey);
       const now = new Date().toISOString();
       const next = [...current];
       next[index] = {
         ...existing,
-        completed: true,
-        completedAt: now,
+        completedAtByAssignee: {
+          ...existing.completedAtByAssignee,
+          [completionKey]: now,
+        },
         updatedAt: now,
       };
       return next;
@@ -498,6 +545,7 @@ export async function completeTodoTask(
 
 export async function restoreTodoTask(
   taskId: string,
+  completionKey: string,
   key: CryptoKey,
   token?: string,
 ): Promise<TodoTask[]> {
@@ -510,11 +558,13 @@ export async function restoreTodoTask(
         throw new GitHubApiError('Task was not found.', null, 'not-found');
       }
       const existing = current[index];
+      assertCompletionKeyMatchesTask(existing, completionKey);
+      const nextCompleted = { ...existing.completedAtByAssignee };
+      delete nextCompleted[completionKey];
       const next = [...current];
       next[index] = {
         ...existing,
-        completed: false,
-        completedAt: null,
+        completedAtByAssignee: nextCompleted,
         updatedAt: new Date().toISOString(),
       };
       return next;

@@ -139,8 +139,8 @@
   margin-top: 0.35rem;
 }
 
-.todo-page .ops-header__actions {
-  flex-wrap: wrap;
+.todo-form-modal {
+  z-index: 10050;
 }
 
 .todo-section {
