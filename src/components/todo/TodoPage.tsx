@@ -204,6 +204,7 @@ function TodoTaskCard({
 }
 
 type PersonSectionProps = {
+  sectionId: string;
   sectionKey: string;
   title: string;
   subtitle?: string;
@@ -222,6 +223,7 @@ type PersonSectionProps = {
 };
 
 function PersonSection({
+  sectionId,
   sectionKey,
   title,
   subtitle,
@@ -245,7 +247,11 @@ function PersonSection({
       : `${activeTasks.length} active tasks`;
 
   return (
-    <section className="todo-person-section" aria-labelledby={`${sectionKey}-heading`}>
+    <section
+      id={sectionId}
+      className="todo-person-section"
+      aria-labelledby={`${sectionKey}-heading`}
+    >
       <header className="todo-person-header">
         <div className="todo-person-header__identity">
           {initial ? (
@@ -522,6 +528,20 @@ export function TodoPage({
       ...current,
       [key]: !current[key],
     }));
+  }
+
+  const hasUnassignedTasks =
+    unassignedActive.length > 0 || unassignedCompleted.length > 0;
+
+  function jumpToPersonSection(sectionDomId: string) {
+    const target = document.getElementById(sectionDomId);
+    if (!target) {
+      return;
+    }
+    target.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
   }
 
   async function handleRefresh() {
@@ -883,6 +903,40 @@ export function TodoPage({
             <section className="todo-section">
               <h2 className="todo-section__title">Team Tasks</h2>
 
+              {sortedEmployees.length > 0 || hasUnassignedTasks ? (
+                <nav
+                  className="todo-person-jump-nav"
+                  aria-label="Jump to team member tasks"
+                >
+                  <span className="todo-person-jump-nav__label">Team</span>
+                  <div className="todo-person-jump-nav__buttons">
+                    {sortedEmployees.map((employee) => (
+                      <button
+                        key={employee.id}
+                        type="button"
+                        className="todo-person-jump-nav__button"
+                        onClick={() =>
+                          jumpToPersonSection(`todo-person-${employee.id}`)
+                        }
+                      >
+                        {employee.name}
+                      </button>
+                    ))}
+                    {hasUnassignedTasks ? (
+                      <button
+                        type="button"
+                        className="todo-person-jump-nav__button"
+                        onClick={() =>
+                          jumpToPersonSection('todo-person-unassigned')
+                        }
+                      >
+                        Unassigned
+                      </button>
+                    ) : null}
+                  </div>
+                </nav>
+              ) : null}
+
               {sortedEmployees.length === 0 ? (
                 <p className="todo-empty todo-empty--team">
                   No team members yet.
@@ -896,6 +950,7 @@ export function TodoPage({
                   return (
                     <PersonSection
                       key={employee.id}
+                      sectionId={`todo-person-${employee.id}`}
                       sectionKey={employee.id}
                       title={employee.name}
                       initial={employee.name.trim().charAt(0).toUpperCase() || '?'}
@@ -922,6 +977,7 @@ export function TodoPage({
               )}
 
               <PersonSection
+                sectionId="todo-person-unassigned"
                 sectionKey={UNASSIGNED_COMPLETION_KEY}
                 title="Unassigned"
                 subtitle="Tasks not assigned to anyone."

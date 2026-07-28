@@ -3,3 +3,5 @@ dist
 dist-ssr
 *.local
 .DS_Store
+todo-tasks-before-dom-hr-cleanup.enc.json
+scripts/cleanup-dom-hr-completed.mjs

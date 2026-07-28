@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 type ConnectGitHubModalProps = {
   open: boolean;
@@ -47,8 +48,8 @@ export function ConnectGitHubModal({
 
   const displayError = localError ?? error;
 
-  return (
-    <div className="ops-modal ops-modal--blocking" role="presentation">
+  return createPortal(
+    <div className="ops-modal ops-modal--blocking catering-form-modal" role="presentation">
       <div className="ops-modal__backdrop" aria-hidden="true" />
       <div
         className="ops-modal__dialog ops-modal__dialog--connect"
@@ -108,6 +109,7 @@ export function ConnectGitHubModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   CateringEvent,
   CateringFormMode,
@@ -549,45 +550,51 @@ export function OperationsPage({
         </div>
       </main>
 
-      {seriesPromptEvent ? (
-        <div className="ops-modal ops-modal--blocking" role="presentation">
-          <div className="ops-modal__backdrop" aria-hidden="true" />
-          <div
-            className="ops-modal__dialog ops-modal__dialog--connect"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="recurring-series-title"
-          >
-            <div className="ops-modal__header">
-              <h2 id="recurring-series-title" className="ops-modal__title">
-                Recurring Event
-              </h2>
-            </div>
-            <div className="ops-modal__body">
-              <p className="ops-connect__description">
-                This is a recurring weekly event. Changes will apply to all future
-                Altadena Pop-Up events.
-              </p>
-            </div>
-            <div className="ops-modal__footer">
-              <button
-                type="button"
-                className="ops-btn ops-btn--ghost"
-                onClick={() => setSeriesPromptEvent(null)}
+      {seriesPromptEvent
+        ? createPortal(
+            <div
+              className="ops-modal ops-modal--blocking catering-form-modal"
+              role="presentation"
+            >
+              <div className="ops-modal__backdrop" aria-hidden="true" />
+              <div
+                className="ops-modal__dialog ops-modal__dialog--connect"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="recurring-series-title"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="ops-btn ops-btn--primary"
-                onClick={handleEditEntireSeries}
-              >
-                Edit Entire Series
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                <div className="ops-modal__header">
+                  <h2 id="recurring-series-title" className="ops-modal__title">
+                    Recurring Event
+                  </h2>
+                </div>
+                <div className="ops-modal__body">
+                  <p className="ops-connect__description">
+                    This is a recurring weekly event. Changes will apply to all
+                    future Altadena Pop-Up events.
+                  </p>
+                </div>
+                <div className="ops-modal__footer">
+                  <button
+                    type="button"
+                    className="ops-btn ops-btn--ghost"
+                    onClick={() => setSeriesPromptEvent(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="ops-btn ops-btn--primary"
+                    onClick={handleEditEntireSeries}
+                  >
+                    Edit Entire Series
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {!managedAuth ? (
         <ConnectGitHubModal

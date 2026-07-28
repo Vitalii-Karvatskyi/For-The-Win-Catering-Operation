@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   CateringEvent,
   CateringEventStatus,
@@ -435,8 +436,8 @@ export function AddCateringModal({
     }
   }
 
-  return (
-    <div className="ops-modal" role="presentation">
+  return createPortal(
+    <div className="ops-modal catering-form-modal" role="presentation">
       <div className="ops-modal__backdrop" aria-hidden="true" />
       <div
         className="ops-modal__dialog ops-modal__dialog--wide"
@@ -700,6 +701,7 @@ export function AddCateringModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
