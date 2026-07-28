@@ -258,7 +258,7 @@ export async function readJsonFile<T>(
   return { sha, data: parsed as T };
 }
 
-async function putJsonFile(
+export async function putJsonFile(
   path: string,
   data: unknown,
   sha: string,

@@ -47,7 +47,20 @@ type ConnectionPhase =
   | 'ready'
   | 'data-error';
 
-export function OperationsPage() {
+export type OperationsPageProps = {
+  /** When true, GitHub Connect modal is owned by the parent shell. */
+  managedAuth?: boolean;
+  githubReady?: boolean;
+  connectSession?: number;
+  onAuthFailure?: (message?: string) => void;
+};
+
+export function OperationsPage({
+  managedAuth = false,
+  githubReady = false,
+  connectSession = 0,
+  onAuthFailure,
+}: OperationsPageProps) {
   const [phase, setPhase] = useState<ConnectionPhase>('checking');
   const [statusLabel, setStatusLabel] = useState('Connecting...');
   const [storedEvents, setStoredEvents] = useState<CateringEvent[]>([]);
@@ -81,11 +94,16 @@ export function OperationsPage() {
     setEmployees([]);
     setPhase('needs-token');
     setStatusLabel('Unable to connect to GitHub.');
-    setConnectOpen(true);
-    setConnectError(message ?? 'GitHub access expired. Enter a new token.');
     setBannerMessage(null);
     setSeriesPromptEvent(null);
-  }, []);
+    setModal({ open: false });
+    if (managedAuth) {
+      onAuthFailure?.(message ?? 'GitHub access expired. Enter a new token.');
+    } else {
+      setConnectOpen(true);
+      setConnectError(message ?? 'GitHub access expired. Enter a new token.');
+    }
+  }, [managedAuth, onAuthFailure]);
 
   const loadSharedData = useCallback(async () => {
     setPhase('loading-data');
@@ -127,6 +145,17 @@ export function OperationsPage() {
     setStatusLabel('Connecting...');
     setConnectError(null);
 
+    if (managedAuth) {
+      if (!githubReady) {
+        setPhase('needs-token');
+        setStatusLabel('Unable to connect to GitHub.');
+        return;
+      }
+      setStatusLabel('GitHub Connected');
+      await loadSharedData();
+      return;
+    }
+
     const token = getGitHubToken();
     if (!token) {
       setPhase('needs-token');
@@ -151,15 +180,33 @@ export function OperationsPage() {
 
     setStatusLabel('GitHub Connected');
     await loadSharedData();
-  }, [loadSharedData]);
+  }, [loadSharedData, managedAuth, githubReady]);
 
   useEffect(() => {
+    if (managedAuth) {
+      return;
+    }
     if (bootstrapped.current) {
       return;
     }
     bootstrapped.current = true;
     void bootstrap();
-  }, [bootstrap]);
+  }, [bootstrap, managedAuth]);
+
+  useEffect(() => {
+    if (!managedAuth) {
+      return;
+    }
+    if (!githubReady) {
+      setPhase('needs-token');
+      setStatusLabel('Unable to connect to GitHub.');
+      setStoredEvents([]);
+      setEmployees([]);
+      setConnectOpen(false);
+      return;
+    }
+    void loadSharedData();
+  }, [managedAuth, githubReady, connectSession, loadSharedData]);
 
   async function handleConnect(token: string) {
     setConnectBusy(true);
@@ -198,11 +245,15 @@ export function OperationsPage() {
     setEmployees([]);
     setPhase('needs-token');
     setStatusLabel('Unable to connect to GitHub.');
-    setConnectOpen(true);
     setConnectError(null);
     setBannerMessage(null);
     setSeriesPromptEvent(null);
     setModal({ open: false });
+    if (managedAuth) {
+      onAuthFailure?.();
+    } else {
+      setConnectOpen(true);
+    }
   }
 
   async function handleRefresh() {
@@ -538,12 +589,14 @@ export function OperationsPage() {
         </div>
       ) : null}
 
-      <ConnectGitHubModal
-        open={connectOpen}
-        busy={connectBusy}
-        error={connectError}
-        onConnect={handleConnect}
-      />
+      {!managedAuth ? (
+        <ConnectGitHubModal
+          open={connectOpen}
+          busy={connectBusy}
+          error={connectError}
+          onConnect={handleConnect}
+        />
+      ) : null}
 
       <AddCateringModal
         open={modal.open && connected}
