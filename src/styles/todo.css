@@ -30,8 +30,8 @@
   min-height: var(--app-panel-nav-height);
   background: #0d0d0d;
   color: #ffffff;
-  border-top: 4px solid #e03400;
-  border-bottom: 1px solid #2b2b2b;
+  border-top: 0;
+  border-bottom: 4px solid #e03400;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top);
   opacity: 1;
