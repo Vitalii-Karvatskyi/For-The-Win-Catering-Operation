@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { verifyTodoPassword } from '../../services/todoCryptoService';
 
 type UnlockTodoModalProps = {
@@ -54,7 +55,6 @@ export function UnlockTodoModal({
       const ok = await verifyTodoPassword(value);
       if (!ok) {
         setError('Incorrect password.');
-        setVerifying(false);
         return;
       }
       await onUnlock(value);
@@ -66,73 +66,75 @@ export function UnlockTodoModal({
     }
   }
 
-  const locked = busy || verifying;
+  const unlocking = busy || verifying;
 
-  return (
-    <div className="ops-modal ops-modal--blocking" role="presentation">
-      <div className="ops-modal__backdrop" aria-hidden="true" />
+  return createPortal(
+    <div className="todo-unlock-overlay" role="presentation">
       <div
-        className="ops-modal__dialog ops-modal__dialog--connect"
+        className="todo-unlock-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div className="ops-modal__header">
-          <h2 id={titleId} className="ops-modal__title">
-            Unlock To Do
-          </h2>
-        </div>
+        <h2 id={titleId} className="todo-unlock-dialog__title">
+          Unlock To Do
+        </h2>
+        <p className="todo-unlock-dialog__description">
+          Enter the To Do password to access tasks and team members on this
+          device.
+        </p>
 
-        <form className="ops-modal__form" onSubmit={(event) => void handleSubmit(event)} noValidate>
-          <div className="ops-modal__body">
-            <p className="ops-connect__description">
-              Enter the To Do password to access tasks and team members on this
-              device.
-            </p>
-
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-password-input">Password</label>
-              <input
-                id="todo-password-input"
-                type="password"
-                autoComplete="current-password"
-                autoCapitalize="none"
-                spellCheck={false}
-                value={password}
-                disabled={locked}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setError(null);
-                }}
-              />
-            </div>
-
-            {error ? (
-              <p className="ops-field__error" role="alert">
-                {error}
-              </p>
-            ) : null}
+        <form
+          className="todo-unlock-dialog__form"
+          onSubmit={(event) => void handleSubmit(event)}
+          noValidate
+        >
+          <div className="todo-unlock-dialog__field">
+            <label htmlFor="todo-password-input">Password</label>
+            <input
+              id="todo-password-input"
+              type="password"
+              autoComplete="current-password"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={password}
+              disabled={unlocking}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError(null);
+              }}
+            />
           </div>
 
-          <div className="ops-modal__footer">
+          {error ? (
+            <p className="todo-unlock-dialog__error" role="alert">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="todo-unlock-dialog__actions">
             <button
               type="button"
               className="ops-btn ops-btn--ghost"
-              disabled={locked}
-              onClick={onBackToCatering}
+              onClick={() => {
+                setPassword('');
+                setError(null);
+                onBackToCatering();
+              }}
             >
               Back to Catering
             </button>
             <button
               type="submit"
               className="ops-btn ops-btn--primary"
-              disabled={locked}
+              disabled={unlocking}
             >
-              {locked ? 'Unlocking...' : 'Unlock'}
+              {unlocking ? 'Unlocking...' : 'Unlock'}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

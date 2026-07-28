@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppPanelNav } from './components/AppPanelNav';
 import { ConnectGitHubModal } from './components/operations/ConnectGitHubModal';
 import { OperationsPage } from './components/operations/OperationsPage';
@@ -24,15 +24,39 @@ import {
   testGitHubConnection,
 } from './services/githubDataService';
 import {
+  loadEncryptedTodoEmployees,
+  loadEncryptedTodoTasks,
+} from './services/todoDataService';
+import {
+  decryptJson,
   deriveEmployeesKey,
   deriveTasksKey,
+  TodoCryptoError,
 } from './services/todoCryptoService';
 import type { TodoCryptoKeys } from './types/todo';
 import './styles/operations.css';
 import './styles/todo.css';
 
+async function verifyTodoKeysCanDecrypt(keys: TodoCryptoKeys): Promise<void> {
+  const [employeesFile, tasksFile] = await Promise.all([
+    loadEncryptedTodoEmployees(),
+    loadEncryptedTodoTasks(),
+  ]);
+
+  if (employeesFile.envelope.initialized) {
+    await decryptJson(employeesFile.envelope, keys.employeesKey);
+  }
+  if (tasksFile.envelope.initialized) {
+    await decryptJson(tasksFile.envelope, keys.tasksKey);
+  }
+}
+
 export default function App() {
-  const [panel, setPanel] = useState<AppPanel>(() => readActivePanel());
+  const [activePanel, setActivePanel] = useState<AppPanel>('catering');
+  const [pendingPanel, setPendingPanel] = useState<AppPanel | null>(null);
+  const [isTodoUnlockModalOpen, setIsTodoUnlockModalOpen] = useState(false);
+  const [isTodoUnlocked, setIsTodoUnlocked] = useState(false);
+
   const [githubReady, setGithubReady] = useState(false);
   const [githubChecking, setGithubChecking] = useState(true);
   const [connectOpen, setConnectOpen] = useState(false);
@@ -41,37 +65,65 @@ export default function App() {
   const [connectSession, setConnectSession] = useState(0);
 
   const [todoKeys, setTodoKeys] = useState<TodoCryptoKeys | null>(null);
-  const [todoUnlocked, setTodoUnlocked] = useState(false);
   const [todoUnlockBusy, setTodoUnlockBusy] = useState(false);
-  const [todoUnlockOpen, setTodoUnlockOpen] = useState(false);
   const [todoAuthHydrated, setTodoAuthHydrated] = useState(false);
+  const unlockInFlight = useRef(false);
 
-  const lockTodo = useCallback((openModal: boolean) => {
-    clearTodoAuthStorage();
-    setTodoKeys(null);
-    setTodoUnlocked(false);
-    setTodoUnlockOpen(openModal);
+  const goToCatering = useCallback(() => {
+    setActivePanel('catering');
+    writeActivePanel('catering');
+    setPendingPanel(null);
+    setIsTodoUnlockModalOpen(false);
   }, []);
 
-  const switchPanel = useCallback(
+  const goToTodo = useCallback((keys: TodoCryptoKeys) => {
+    setTodoKeys(keys);
+    setIsTodoUnlocked(true);
+    setIsTodoUnlockModalOpen(false);
+    setPendingPanel(null);
+    setActivePanel('todo');
+    writeActivePanel('todo');
+  }, []);
+
+  const handlePanelChange = useCallback(
     (next: AppPanel) => {
-      setPanel(next);
-      writeActivePanel(next);
-      if (next === 'todo') {
-        if (!todoUnlocked) {
-          setTodoUnlockOpen(true);
-        }
+      if (next === 'catering') {
+        goToCatering();
+        return;
+      }
+
+      if (isTodoUnlocked && todoKeys) {
+        setActivePanel('todo');
+        writeActivePanel('todo');
+        setPendingPanel(null);
+        setIsTodoUnlockModalOpen(false);
+        return;
+      }
+
+      // Password-before-switch: keep Catering visible under the modal.
+      setActivePanel('catering');
+      setPendingPanel('todo');
+      if (connectOpen || githubChecking || !githubReady) {
+        setIsTodoUnlockModalOpen(false);
       } else {
-        setTodoUnlockOpen(false);
+        setIsTodoUnlockModalOpen(true);
       }
     },
-    [todoUnlocked],
+    [
+      goToCatering,
+      isTodoUnlocked,
+      todoKeys,
+      connectOpen,
+      githubChecking,
+      githubReady,
+    ],
   );
 
   const handleGithubAuthFailure = useCallback((message?: string) => {
     clearGitHubToken();
     setGithubReady(false);
     setConnectOpen(true);
+    setIsTodoUnlockModalOpen(false);
     setConnectError(message ?? 'GitHub access expired. Enter a new token.');
   }, []);
 
@@ -82,6 +134,7 @@ export default function App() {
     if (!token) {
       setGithubReady(false);
       setConnectOpen(true);
+      setIsTodoUnlockModalOpen(false);
       setGithubChecking(false);
       return;
     }
@@ -91,6 +144,7 @@ export default function App() {
       clearGitHubToken();
       setGithubReady(false);
       setConnectOpen(true);
+      setIsTodoUnlockModalOpen(false);
       setConnectError(
         result.error.includes('expired') || result.error.includes('Invalid')
           ? 'GitHub access expired. Enter a new token.'
@@ -114,21 +168,33 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      const savedPanel = readActivePanel();
       const keys = await importTodoKeysFromStorage();
       if (cancelled) {
         return;
       }
-      if (keys) {
+
+      if (keys && savedPanel === 'todo') {
         setTodoKeys(keys);
-        setTodoUnlocked(true);
-        setTodoUnlockOpen(false);
-      } else {
+        setIsTodoUnlocked(true);
+        setActivePanel('todo');
+        setPendingPanel(null);
+        setIsTodoUnlockModalOpen(false);
+      } else if (savedPanel === 'todo') {
+        clearTodoAuthStorage();
         setTodoKeys(null);
-        setTodoUnlocked(false);
-        if (readActivePanel() === 'todo') {
-          setTodoUnlockOpen(true);
-        }
+        setIsTodoUnlocked(false);
+        setActivePanel('catering');
+        setPendingPanel('todo');
+        setIsTodoUnlockModalOpen(false);
+      } else {
+        setTodoKeys(keys);
+        setIsTodoUnlocked(Boolean(keys));
+        setActivePanel('catering');
+        setPendingPanel(null);
+        setIsTodoUnlockModalOpen(false);
       }
+
       setTodoAuthHydrated(true);
     })();
     return () => {
@@ -137,13 +203,50 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!todoAuthHydrated || githubChecking) {
+    if (!todoAuthHydrated || githubChecking || connectOpen || !githubReady) {
       return;
     }
-    if (panel === 'todo' && !todoUnlocked && !connectOpen) {
-      setTodoUnlockOpen(true);
+
+    if (pendingPanel === 'todo' && !isTodoUnlocked) {
+      setIsTodoUnlockModalOpen(true);
+      return;
     }
-  }, [todoAuthHydrated, githubChecking, panel, todoUnlocked, connectOpen]);
+
+    if (
+      isTodoUnlocked &&
+      todoKeys &&
+      readActivePanel() === 'todo' &&
+      activePanel !== 'todo'
+    ) {
+      // Keys restored while still showing catering during hydrate — promote after GitHub ready.
+      void (async () => {
+        try {
+          await verifyTodoKeysCanDecrypt(todoKeys);
+          if (readActivePanel() === 'todo') {
+            setActivePanel('todo');
+            setPendingPanel(null);
+            setIsTodoUnlockModalOpen(false);
+          }
+        } catch {
+          clearTodoAuthStorage();
+          setTodoKeys(null);
+          setIsTodoUnlocked(false);
+          setActivePanel('catering');
+          setPendingPanel('todo');
+          setIsTodoUnlockModalOpen(true);
+        }
+      })();
+    }
+  }, [
+    todoAuthHydrated,
+    githubChecking,
+    connectOpen,
+    githubReady,
+    pendingPanel,
+    isTodoUnlocked,
+    todoKeys,
+    activePanel,
+  ]);
 
   useEffect(() => {
     function onStorage(event: StorageEvent) {
@@ -153,12 +256,22 @@ export default function App() {
 
       if (event.key === ACTIVE_PANEL_STORAGE_KEY) {
         const next = event.newValue === 'todo' ? 'todo' : 'catering';
-        setPanel(next);
-        if (next === 'todo' && !todoUnlocked) {
-          setTodoUnlockOpen(true);
-        }
         if (next === 'catering') {
-          setTodoUnlockOpen(false);
+          setActivePanel('catering');
+          setPendingPanel(null);
+          setIsTodoUnlockModalOpen(false);
+          return;
+        }
+        if (isTodoUnlocked && todoKeys) {
+          setActivePanel('todo');
+          setPendingPanel(null);
+          setIsTodoUnlockModalOpen(false);
+        } else {
+          setActivePanel('catering');
+          setPendingPanel('todo');
+          if (!connectOpen && githubReady) {
+            setIsTodoUnlockModalOpen(true);
+          }
         }
         return;
       }
@@ -166,9 +279,13 @@ export default function App() {
       if (event.key === TODO_AUTH_STORAGE_KEY) {
         if (!event.newValue) {
           setTodoKeys(null);
-          setTodoUnlocked(false);
-          if (panel === 'todo' && !connectOpen) {
-            setTodoUnlockOpen(true);
+          setIsTodoUnlocked(false);
+          if (activePanel === 'todo' || pendingPanel === 'todo') {
+            setActivePanel('catering');
+            setPendingPanel('todo');
+            if (!connectOpen && githubReady) {
+              setIsTodoUnlockModalOpen(true);
+            }
           }
           return;
         }
@@ -176,10 +293,21 @@ export default function App() {
           const keys = await importTodoKeysFromStorage();
           if (keys) {
             setTodoKeys(keys);
-            setTodoUnlocked(true);
-            setTodoUnlockOpen(false);
+            setIsTodoUnlocked(true);
+            if (readActivePanel() === 'todo') {
+              setActivePanel('todo');
+              setPendingPanel(null);
+              setIsTodoUnlockModalOpen(false);
+            }
           } else {
-            lockTodo(panel === 'todo' && !connectOpen);
+            clearTodoAuthStorage();
+            setTodoKeys(null);
+            setIsTodoUnlocked(false);
+            setActivePanel('catering');
+            setPendingPanel('todo');
+            if (!connectOpen && githubReady) {
+              setIsTodoUnlockModalOpen(true);
+            }
           }
         })();
         return;
@@ -189,6 +317,7 @@ export default function App() {
         if (!event.newValue) {
           setGithubReady(false);
           setConnectOpen(true);
+          setIsTodoUnlockModalOpen(false);
         } else {
           void bootstrapGithub();
         }
@@ -197,7 +326,15 @@ export default function App() {
 
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [panel, todoUnlocked, connectOpen, lockTodo, bootstrapGithub]);
+  }, [
+    activePanel,
+    pendingPanel,
+    isTodoUnlocked,
+    todoKeys,
+    connectOpen,
+    githubReady,
+    bootstrapGithub,
+  ]);
 
   async function handleConnect(token: string) {
     setConnectBusy(true);
@@ -213,13 +350,14 @@ export default function App() {
       setGithubReady(true);
       setConnectOpen(false);
       setConnectSession((value) => value + 1);
-      if (panel === 'todo' && !todoUnlocked) {
-        setTodoUnlockOpen(true);
+      if (pendingPanel === 'todo' && !isTodoUnlocked) {
+        setIsTodoUnlockModalOpen(true);
       }
     } catch (error) {
       clearGitHubToken();
       setGithubReady(false);
       setConnectOpen(true);
+      setIsTodoUnlockModalOpen(false);
       setConnectError(
         error instanceof Error ? error.message : 'Unable to connect to GitHub.',
       );
@@ -229,6 +367,10 @@ export default function App() {
   }
 
   async function handleTodoUnlock(password: string) {
+    if (unlockInFlight.current || todoUnlockBusy) {
+      return;
+    }
+    unlockInFlight.current = true;
     setTodoUnlockBusy(true);
     try {
       const [employeesKey, tasksKey] = await Promise.all([
@@ -236,34 +378,50 @@ export default function App() {
         deriveTasksKey(password),
       ]);
       const keys = { employeesKey, tasksKey };
+      await verifyTodoKeysCanDecrypt(keys);
       await persistTodoKeys(keys);
-      setTodoKeys(keys);
-      setTodoUnlocked(true);
-      setTodoUnlockOpen(false);
-      writeActivePanel('todo');
-      setPanel('todo');
+      goToTodo(keys);
+    } catch (error) {
+      if (error instanceof TodoCryptoError) {
+        clearTodoAuthStorage();
+        setTodoKeys(null);
+        setIsTodoUnlocked(false);
+        throw error;
+      }
+      throw error;
     } finally {
+      unlockInFlight.current = false;
       setTodoUnlockBusy(false);
     }
   }
 
   function handleBackToCatering() {
-    setTodoUnlockOpen(false);
-    switchPanel('catering');
+    goToCatering();
   }
 
   function handleLockTodo() {
-    lockTodo(true);
+    clearTodoAuthStorage();
+    setTodoKeys(null);
+    setIsTodoUnlocked(false);
+    setActivePanel('catering');
+    setPendingPanel('todo');
     writeActivePanel('todo');
-    setPanel('todo');
+    if (connectOpen || !githubReady) {
+      setIsTodoUnlockModalOpen(false);
+    } else {
+      setIsTodoUnlockModalOpen(true);
+    }
   }
 
   function handleTodoDecryptFailure() {
     clearTodoAuthStorage();
     setTodoKeys(null);
-    setTodoUnlocked(false);
-    if (!connectOpen) {
-      setTodoUnlockOpen(true);
+    setIsTodoUnlocked(false);
+    setActivePanel('catering');
+    setPendingPanel('todo');
+    writeActivePanel('todo');
+    if (!connectOpen && githubReady) {
+      setIsTodoUnlockModalOpen(true);
     }
   }
 
@@ -271,30 +429,34 @@ export default function App() {
   const showTodoModal =
     !showGithubModal &&
     !githubChecking &&
-    panel === 'todo' &&
-    todoUnlockOpen &&
-    !todoUnlocked;
+    isTodoUnlockModalOpen &&
+    !isTodoUnlocked;
+
+  const showTodoPage =
+    activePanel === 'todo' && isTodoUnlocked && Boolean(todoKeys);
 
   return (
     <div className="app-shell">
-      <AppPanelNav activePanel={panel} onChange={switchPanel} />
+      <AppPanelNav activePanel={activePanel} onChange={handlePanelChange} />
 
-      {panel === 'catering' ? (
-        <OperationsPage
-          managedAuth
-          githubReady={githubReady}
-          connectSession={connectSession}
-          onAuthFailure={handleGithubAuthFailure}
-        />
-      ) : (
-        <TodoPage
-          unlocked={todoUnlocked && githubReady}
-          keys={todoUnlocked ? todoKeys : null}
-          onLock={handleLockTodo}
-          onDecryptFailure={handleTodoDecryptFailure}
-          onAuthFailure={handleGithubAuthFailure}
-        />
-      )}
+      <main className="app-panel-content">
+        {showTodoPage ? (
+          <TodoPage
+            unlocked
+            keys={todoKeys}
+            onLock={handleLockTodo}
+            onDecryptFailure={handleTodoDecryptFailure}
+            onAuthFailure={handleGithubAuthFailure}
+          />
+        ) : (
+          <OperationsPage
+            managedAuth
+            githubReady={githubReady}
+            connectSession={connectSession}
+            onAuthFailure={handleGithubAuthFailure}
+          />
+        )}
+      </main>
 
       <ConnectGitHubModal
         open={showGithubModal}

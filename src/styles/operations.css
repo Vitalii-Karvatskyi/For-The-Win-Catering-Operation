@@ -62,9 +62,8 @@
 
 /* —— Header —— */
 .ops-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  position: relative;
+  z-index: 1;
   background: var(--ftw-white);
   border-bottom: 1px solid var(--ftw-border);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
@@ -763,7 +762,7 @@
 .ops-modal {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 5000;
   display: flex;
   align-items: flex-start;
   justify-content: center;
