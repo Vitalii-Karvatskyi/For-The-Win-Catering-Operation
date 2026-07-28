@@ -289,10 +289,10 @@
     "status": "planning",
     "assignedEmployees": [],
     "menuOrder": {
-      "cheeseburger": 580,
+      "cheeseburger": 1000,
       "doubleCheeseburger": 0,
       "veggieBurger": 0,
-      "fries": 600,
+      "fries": 1000,
       "openItems": [
         {
           "id": "open-f335ba24-0a6a-4808-ba56-a38b8048dc3d",
