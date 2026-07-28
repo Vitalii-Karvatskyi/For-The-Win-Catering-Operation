@@ -140,7 +140,59 @@
 }
 
 .todo-form-modal {
+  --ftw-brand: #e03400;
+  --ftw-brand-light: #f5480a;
+  --ftw-brand-dark: #be2c00;
+  --ftw-accent: #fb3f00;
+  --ftw-black: #0d0d0d;
+  --ftw-text: #1a1a1a;
+  --ftw-white: #ffffff;
+  --ftw-gray-600: #4d4d4d;
+  --ftw-gray-400: #707070;
+  --ftw-border: #d6d6d6;
+  --ftw-bg: #ffffff;
+  --ftw-bg-secondary: #ebebec;
+  --ftw-bg-tertiary: #f6f6f6;
+  --ftw-font-display: 'Bebas Neue', sans-serif;
+  --ftw-font-nav: 'Barlow Condensed', sans-serif;
+  --ftw-font-body: 'Barlow Condensed', Inter, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
   z-index: 10050;
+  color: #1a1a1a;
+  font-family: var(--ftw-font-body);
+}
+
+.todo-form-modal .ops-modal__backdrop {
+  background: rgba(13, 13, 13, 0.58);
+  opacity: 1;
+  z-index: 0;
+}
+
+.todo-form-modal .ops-modal__dialog {
+  position: relative;
+  z-index: 1;
+  background-color: #ffffff;
+  color: #1a1a1a;
+  opacity: 1;
+  isolation: isolate;
+}
+
+.todo-form-modal .ops-modal__header {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+.todo-form-modal .ops-modal__body {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.todo-form-modal .ops-modal__footer {
+  background-color: #f6f6f6;
+  color: #1a1a1a;
 }
 
 .todo-form-modal .ops-modal__form {
@@ -148,9 +200,21 @@
   overflow: hidden;
 }
 
-.todo-form-modal .ops-modal__body {
-  min-height: 0;
-  overflow-y: auto;
+.todo-form-modal .ops-field input,
+.todo-form-modal .ops-field textarea,
+.todo-form-modal .ops-field select {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border-color: #d6d6d6;
+  opacity: 1;
+}
+
+.todo-form-modal .ops-field input:disabled,
+.todo-form-modal .ops-field textarea:disabled,
+.todo-form-modal .ops-field select:disabled {
+  background-color: #ebebec;
+  color: #707070;
+  opacity: 1;
 }
 
 .todo-task-form-dialog {
