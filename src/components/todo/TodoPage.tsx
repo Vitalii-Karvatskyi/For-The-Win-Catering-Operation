@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   TodoCryptoKeys,
   TodoEmployee,
@@ -29,6 +29,8 @@ import { ManagePeopleModal } from './ManagePeopleModal';
 import { TaskFormModal } from './TaskFormModal';
 import { ftwAssets } from '../../config/ftwAssets';
 import '../../styles/todo.css';
+
+const UNASSIGNED_KEY = 'unassigned';
 
 type TodoPageProps = {
   unlocked: boolean;
@@ -62,6 +64,284 @@ function buildTaskFromForm(values: TodoTaskFormValues): Omit<
   return task;
 }
 
+function statusClassName(label: string): string {
+  if (label === 'Overdue') return 'todo-task-card__status todo-task-card__status--overdue';
+  if (label === 'Due Today') return 'todo-task-card__status todo-task-card__status--today';
+  if (label === 'Upcoming') return 'todo-task-card__status todo-task-card__status--upcoming';
+  if (label === 'Completed') return 'todo-task-card__status todo-task-card__status--completed';
+  return 'todo-task-card__status';
+}
+
+type TaskCardProps = {
+  task: TodoTask;
+  employees: TodoEmployee[];
+  completed?: boolean;
+  busy: boolean;
+  mutationsBlocked: boolean;
+  onEdit: (task: TodoTask) => void;
+  onComplete: (taskId: string) => void;
+  onRestore: (taskId: string) => void;
+};
+
+function TodoTaskCard({
+  task,
+  employees,
+  completed = false,
+  busy,
+  mutationsBlocked,
+  onEdit,
+  onComplete,
+  onRestore,
+}: TaskCardProps) {
+  const assignees = resolveAssignees(task.assigneeIds, employees);
+  const status = completed
+    ? 'Completed'
+    : activeTaskStatusLabel(task.deadlineDate);
+  const shared = task.assigneeIds.length > 1;
+
+  return (
+    <article
+      className={`todo-task-card${completed ? ' todo-task-card--completed' : ''}`}
+    >
+      <div className="todo-task-card__top">
+        <div className="todo-task-card__heading">
+          <div className="todo-task-card__badges">
+            <span className={statusClassName(status)}>{status}</span>
+            {shared ? (
+              <span className="todo-task-card__shared">Shared task</span>
+            ) : null}
+          </div>
+          <h3 className="todo-task-card__title">{task.title}</h3>
+          <div className="todo-task-card__meta-row">
+            {task.department?.trim() ? (
+              <span className="todo-task-card__pill">{task.department}</span>
+            ) : null}
+            {task.deadlineDate ? (
+              <span className="todo-task-card__deadline">
+                Deadline: {formatLocalDateLabel(task.deadlineDate)}
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="todo-task-card__actions">
+          {completed ? (
+            <button
+              type="button"
+              className="ops-btn ops-btn--secondary"
+              disabled={busy || mutationsBlocked}
+              aria-label={`Restore task: ${task.title}`}
+              onClick={() => onRestore(task.id)}
+            >
+              {busy ? 'Restoring...' : 'Restore'}
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="ops-btn ops-btn--ghost"
+                disabled={busy || mutationsBlocked}
+                aria-label={`Edit task: ${task.title}`}
+                onClick={() => onEdit(task)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="ops-btn ops-btn--primary"
+                disabled={busy || mutationsBlocked}
+                aria-label={`Complete task: ${task.title}`}
+                onClick={() => onComplete(task.id)}
+              >
+                {busy ? 'Completing...' : 'Complete'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="todo-task-card__body">
+        {task.description?.trim() ? (
+          <p className="todo-task-card__detail">
+            <span>Description</span>
+            {task.description}
+          </p>
+        ) : null}
+        {task.amountOrDueDate?.trim() ? (
+          <p className="todo-task-card__detail">
+            <span>Amount / Due Date</span>
+            {task.amountOrDueDate}
+          </p>
+        ) : null}
+        {task.involvement?.trim() ? (
+          <p className="todo-task-card__detail">
+            <span>Involvement</span>
+            {task.involvement}
+          </p>
+        ) : null}
+        {task.notes?.trim() ? (
+          <p className="todo-task-card__detail">
+            <span>Notes</span>
+            {task.notes}
+          </p>
+        ) : null}
+
+        <div className="todo-task-card__assignees">
+          <span className="todo-task-card__assignees-label">Assigned to</span>
+          <div className="todo-task-card__chips">
+            {assignees.length === 0 ? (
+              <span className="todo-chip todo-chip--muted">Unassigned</span>
+            ) : (
+              assignees.map((person) => (
+                <span key={person.id} className="todo-chip">
+                  {person.name}
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        {completed && task.completedAt ? (
+          <p className="todo-task-card__completed-at">
+            Completed: {formatLocalDateTime(task.completedAt)}
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+type PersonSectionProps = {
+  sectionKey: string;
+  title: string;
+  subtitle?: string;
+  initial?: string;
+  activeTasks: TodoTask[];
+  completedTasks: TodoTask[];
+  employees: TodoEmployee[];
+  expanded: boolean;
+  onToggleCompleted: () => void;
+  mutatingTaskIds: ReadonlySet<string>;
+  mutationsBlocked: boolean;
+  onEdit: (task: TodoTask) => void;
+  onComplete: (taskId: string) => void;
+  onRestore: (taskId: string) => void;
+};
+
+function PersonSection({
+  sectionKey,
+  title,
+  subtitle,
+  initial,
+  activeTasks,
+  completedTasks,
+  employees,
+  expanded,
+  onToggleCompleted,
+  mutatingTaskIds,
+  mutationsBlocked,
+  onEdit,
+  onComplete,
+  onRestore,
+}: PersonSectionProps) {
+  const completedPanelId = useId();
+  const activeLabel =
+    activeTasks.length === 1
+      ? '1 active task'
+      : `${activeTasks.length} active tasks`;
+
+  return (
+    <section className="todo-person-section" aria-labelledby={`${sectionKey}-heading`}>
+      <header className="todo-person-header">
+        <div className="todo-person-header__identity">
+          {initial ? (
+            <span className="todo-person-avatar" aria-hidden="true">
+              {initial}
+            </span>
+          ) : (
+            <span className="todo-person-avatar todo-person-avatar--muted" aria-hidden="true">
+              ?
+            </span>
+          )}
+          <div>
+            <h2 id={`${sectionKey}-heading`} className="todo-person-header__name">
+              {title}
+            </h2>
+            {subtitle ? (
+              <p className="todo-person-header__subtitle">{subtitle}</p>
+            ) : (
+              <p className="todo-person-header__subtitle">{activeLabel}</p>
+            )}
+          </div>
+        </div>
+        <p className="todo-person-header__counts">
+          {activeLabel}
+          {' · '}
+          {completedTasks.length} completed
+        </p>
+      </header>
+
+      <div className="todo-person-section__block">
+        <h3 className="todo-person-section__label">Active Tasks</h3>
+        {activeTasks.length === 0 ? (
+          <p className="todo-empty">No active tasks.</p>
+        ) : (
+          <div className="todo-task-grid">
+            {activeTasks.map((task) => (
+              <TodoTaskCard
+                key={`${sectionKey}-active-${task.id}`}
+                task={task}
+                employees={employees}
+                busy={mutatingTaskIds.has(task.id)}
+                mutationsBlocked={mutationsBlocked}
+                onEdit={onEdit}
+                onComplete={onComplete}
+                onRestore={onRestore}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="todo-person-section__block">
+        <button
+          type="button"
+          className="todo-completed-toggle"
+          aria-expanded={expanded}
+          aria-controls={completedPanelId}
+          onClick={onToggleCompleted}
+        >
+          Completed Tasks ({completedTasks.length})
+          <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
+        </button>
+        {expanded ? (
+          <div id={completedPanelId}>
+            {completedTasks.length === 0 ? (
+              <p className="todo-empty">No completed tasks.</p>
+            ) : (
+              <div className="todo-task-grid">
+                {completedTasks.map((task) => (
+                  <TodoTaskCard
+                    key={`${sectionKey}-done-${task.id}`}
+                    task={task}
+                    employees={employees}
+                    completed
+                    busy={mutatingTaskIds.has(task.id)}
+                    mutationsBlocked={mutationsBlocked}
+                    onEdit={onEdit}
+                    onComplete={onComplete}
+                    onRestore={onRestore}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export function TodoPage({
   unlocked,
   keys,
@@ -87,7 +367,9 @@ export function TodoPage({
   const [mutatingTaskIds, setMutatingTaskIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [completedOpen, setCompletedOpen] = useState(false);
+  const [expandedCompletedGroups, setExpandedCompletedGroups] = useState<
+    Record<string, boolean>
+  >({});
   const [mutationsBlocked, setMutationsBlocked] = useState(false);
 
   const loadGeneration = useRef(0);
@@ -104,7 +386,7 @@ export function TodoPage({
     setBanner(null);
     setPeopleOpen(false);
     setTaskModal({ open: false });
-    setCompletedOpen(false);
+    setExpandedCompletedGroups({});
     setMutationsBlocked(false);
   }, []);
 
@@ -169,18 +451,17 @@ export function TodoPage({
       return;
     }
     void loadData();
-    // Only reload when unlock/session keys change — not when parent callbacks change.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional stable reload gate
   }, [unlocked, keys]);
 
-  const activeTasks = useMemo(
-    () => sortActiveTasks(tasks.filter((task) => !task.completed)),
-    [tasks],
+  const sortedEmployees = useMemo(
+    () =>
+      [...employees].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      ),
+    [employees],
   );
-  const completedTasks = useMemo(
-    () => sortCompletedTasks(tasks.filter((task) => task.completed)),
-    [tasks],
-  );
+
   const departmentOptions = useMemo(() => {
     const values = new Set<string>();
     for (const task of tasks) {
@@ -190,6 +471,45 @@ export function TodoPage({
     }
     return [...values];
   }, [tasks]);
+
+  const unassignedActive = useMemo(
+    () =>
+      sortActiveTasks(
+        tasks.filter((task) => !task.completed && task.assigneeIds.length === 0),
+      ),
+    [tasks],
+  );
+
+  const unassignedCompleted = useMemo(
+    () =>
+      sortCompletedTasks(
+        tasks.filter((task) => task.completed && task.assigneeIds.length === 0),
+      ),
+    [tasks],
+  );
+
+  function employeeActiveTasks(employeeId: string): TodoTask[] {
+    return sortActiveTasks(
+      tasks.filter(
+        (task) => !task.completed && task.assigneeIds.includes(employeeId),
+      ),
+    );
+  }
+
+  function employeeCompletedTasks(employeeId: string): TodoTask[] {
+    return sortCompletedTasks(
+      tasks.filter(
+        (task) => task.completed && task.assigneeIds.includes(employeeId),
+      ),
+    );
+  }
+
+  function toggleCompletedGroup(key: string) {
+    setExpandedCompletedGroups((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
 
   async function handleRefresh() {
     if (!keys || refreshBusy) {
@@ -252,7 +572,6 @@ export function TodoPage({
           completed: false,
           completedAt: null,
         };
-        // Bump generation so an in-flight stale load cannot overwrite this save.
         loadGeneration.current += 1;
         const savedTasks = await createTodoTask(task, keys.tasksKey);
         setTasks(savedTasks);
@@ -277,9 +596,7 @@ export function TodoPage({
         onAuthFailureRef.current('GitHub access expired. Enter a new token.');
         throw err;
       }
-      setTaskError(
-        err instanceof Error ? err.message : 'Save failed.',
-      );
+      setTaskError(err instanceof Error ? err.message : 'Save failed.');
       throw err instanceof Error ? err : new Error('Save failed.');
     } finally {
       setTaskBusy(false);
@@ -342,33 +659,6 @@ export function TodoPage({
     }
   }
 
-  function assigneeLabel(task: TodoTask): string {
-    const assignees = resolveAssignees(task.assigneeIds, employees);
-    if (assignees.length === 0) {
-      return 'Unassigned';
-    }
-    return assignees.map((person) => person.name).join(', ');
-  }
-
-  function statusClass(label: string): string {
-    if (label === 'Overdue') return 'todo-status todo-status--overdue';
-    if (label === 'Due Today') return 'todo-status todo-status--today';
-    return 'todo-status';
-  }
-
-  function renderTaskExtras(task: TodoTask) {
-    return (
-      <>
-        {task.description ? (
-          <p className="todo-task__description">{task.description}</p>
-        ) : null}
-        {task.notes ? (
-          <p className="todo-task__notes">Notes: {task.notes}</p>
-        ) : null}
-      </>
-    );
-  }
-
   return (
     <div className="ops-page todo-page">
       <header className="ops-header">
@@ -396,7 +686,9 @@ export function TodoPage({
                   <button
                     type="button"
                     className="ops-btn ops-btn--primary"
-                    disabled={!keys || phase !== 'ready' || mutationsBlocked || taskBusy}
+                    disabled={
+                      !keys || phase !== 'ready' || mutationsBlocked || taskBusy
+                    }
                     onClick={() =>
                       setTaskModal({ open: true, mode: 'create', task: null })
                     }
@@ -495,243 +787,68 @@ export function TodoPage({
           ) : null}
 
           {unlocked && phase === 'ready' ? (
-            <>
-              <section className="todo-section">
-                <h2 className="todo-section__title">Active Tasks</h2>
-                {activeTasks.length === 0 ? (
-                  <p className="todo-empty">No active tasks.</p>
-                ) : (
-                  <>
-                    <div className="todo-table-wrap" aria-hidden="false">
-                      <table className="todo-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Status</th>
-                            <th scope="col">Department</th>
-                            <th scope="col">Quick Note Task</th>
-                            <th scope="col">Amount / Due Date</th>
-                            <th scope="col">Involvement</th>
-                            <th scope="col">Assigned To</th>
-                            <th scope="col">Deadline</th>
-                            <th scope="col">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activeTasks.map((task) => {
-                            const busy = mutatingTaskIds.has(task.id);
-                            const status = activeTaskStatusLabel(task.deadlineDate);
-                            return (
-                              <tr key={task.id}>
-                                <td>
-                                  <span className={statusClass(status)}>
-                                    {status}
-                                  </span>
-                                </td>
-                                <td>{task.department?.trim() || '—'}</td>
-                                <td>
-                                  <div className="todo-table__task">
-                                    <strong>{task.title}</strong>
-                                    {renderTaskExtras(task)}
-                                  </div>
-                                </td>
-                                <td>{task.amountOrDueDate?.trim() || '—'}</td>
-                                <td>{task.involvement?.trim() || '—'}</td>
-                                <td>{assigneeLabel(task)}</td>
-                                <td>
-                                  {task.deadlineDate
-                                    ? formatLocalDateLabel(task.deadlineDate)
-                                    : 'No deadline'}
-                                </td>
-                                <td>
-                                  <div className="todo-task__actions">
-                                    <button
-                                      type="button"
-                                      className="ops-btn ops-btn--ghost"
-                                      disabled={busy || mutationsBlocked}
-                                      onClick={() =>
-                                        setTaskModal({
-                                          open: true,
-                                          mode: 'edit',
-                                          task,
-                                        })
-                                      }
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="ops-btn ops-btn--primary"
-                                      disabled={busy || mutationsBlocked}
-                                      onClick={() => {
-                                        void handleComplete(task.id);
-                                      }}
-                                    >
-                                      {busy ? 'Completing...' : 'Complete'}
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+            <section className="todo-section">
+              <h2 className="todo-section__title">Team Tasks</h2>
 
-                    <ul className="todo-card-list">
-                      {activeTasks.map((task) => {
-                        const busy = mutatingTaskIds.has(task.id);
-                        const status = activeTaskStatusLabel(task.deadlineDate);
-                        return (
-                          <li key={task.id} className="todo-card">
-                            <p className={statusClass(status)}>{status}</p>
-                            {task.department?.trim() ? (
-                              <p className="todo-card__row">
-                                <span>Department</span>
-                                <strong>{task.department}</strong>
-                              </p>
-                            ) : null}
-                            <h3 className="todo-task__title">{task.title}</h3>
-                            {renderTaskExtras(task)}
-                            {task.amountOrDueDate?.trim() ? (
-                              <p className="todo-card__row">
-                                <span>Amount / Due Date</span>
-                                <strong>{task.amountOrDueDate}</strong>
-                              </p>
-                            ) : null}
-                            {task.involvement?.trim() ? (
-                              <p className="todo-card__row">
-                                <span>Involvement</span>
-                                <strong>{task.involvement}</strong>
-                              </p>
-                            ) : null}
-                            <p className="todo-card__row">
-                              <span>Assigned To</span>
-                              <strong>{assigneeLabel(task)}</strong>
-                            </p>
-                            <p className="todo-card__row">
-                              <span>Deadline</span>
-                              <strong>
-                                {task.deadlineDate
-                                  ? formatLocalDateLabel(task.deadlineDate)
-                                  : 'No deadline'}
-                              </strong>
-                            </p>
-                            <div className="todo-task__actions">
-                              <button
-                                type="button"
-                                className="ops-btn ops-btn--ghost"
-                                disabled={busy || mutationsBlocked}
-                                onClick={() =>
-                                  setTaskModal({
-                                    open: true,
-                                    mode: 'edit',
-                                    task,
-                                  })
-                                }
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="ops-btn ops-btn--primary"
-                                disabled={busy || mutationsBlocked}
-                                onClick={() => {
-                                  void handleComplete(task.id);
-                                }}
-                              >
-                                {busy ? 'Completing...' : 'Complete'}
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
-                )}
-              </section>
+              {sortedEmployees.length === 0 ? (
+                <p className="todo-empty todo-empty--team">
+                  No team members yet.
+                  <br />
+                  Add people to organize tasks by person.
+                </p>
+              ) : (
+                sortedEmployees.map((employee) => {
+                  const active = employeeActiveTasks(employee.id);
+                  const completed = employeeCompletedTasks(employee.id);
+                  return (
+                    <PersonSection
+                      key={employee.id}
+                      sectionKey={employee.id}
+                      title={employee.name}
+                      initial={employee.name.trim().charAt(0).toUpperCase() || '?'}
+                      activeTasks={active}
+                      completedTasks={completed}
+                      employees={employees}
+                      expanded={Boolean(expandedCompletedGroups[employee.id])}
+                      onToggleCompleted={() => toggleCompletedGroup(employee.id)}
+                      mutatingTaskIds={mutatingTaskIds}
+                      mutationsBlocked={mutationsBlocked}
+                      onEdit={(task) =>
+                        setTaskModal({ open: true, mode: 'edit', task })
+                      }
+                      onComplete={(taskId) => {
+                        void handleComplete(taskId);
+                      }}
+                      onRestore={(taskId) => {
+                        void handleRestore(taskId);
+                      }}
+                    />
+                  );
+                })
+              )}
 
-              <section className="todo-section">
-                <button
-                  type="button"
-                  className="todo-completed-toggle"
-                  aria-expanded={completedOpen}
-                  onClick={() => setCompletedOpen((open) => !open)}
-                >
-                  Completed Tasks ({completedTasks.length})
-                  <span aria-hidden="true">{completedOpen ? '▾' : '▸'}</span>
-                </button>
-                {completedOpen ? (
-                  completedTasks.length === 0 ? (
-                    <p className="todo-empty">No completed tasks.</p>
-                  ) : (
-                    <ul className="todo-card-list todo-card-list--always">
-                      {completedTasks.map((task) => {
-                        const busy = mutatingTaskIds.has(task.id);
-                        return (
-                          <li
-                            key={task.id}
-                            className="todo-card todo-card--completed"
-                          >
-                            {task.department?.trim() ? (
-                              <p className="todo-card__row">
-                                <span>Department</span>
-                                <strong>{task.department}</strong>
-                              </p>
-                            ) : null}
-                            <h3 className="todo-task__title">{task.title}</h3>
-                            {renderTaskExtras(task)}
-                            {task.amountOrDueDate?.trim() ? (
-                              <p className="todo-card__row">
-                                <span>Amount / Due Date</span>
-                                <strong>{task.amountOrDueDate}</strong>
-                              </p>
-                            ) : null}
-                            {task.involvement?.trim() ? (
-                              <p className="todo-card__row">
-                                <span>Involvement</span>
-                                <strong>{task.involvement}</strong>
-                              </p>
-                            ) : null}
-                            <p className="todo-card__row">
-                              <span>Assigned To</span>
-                              <strong>{assigneeLabel(task)}</strong>
-                            </p>
-                            {task.deadlineDate ? (
-                              <p className="todo-card__row">
-                                <span>Deadline</span>
-                                <strong>
-                                  {formatLocalDateLabel(task.deadlineDate)}
-                                </strong>
-                              </p>
-                            ) : null}
-                            {task.completedAt ? (
-                              <p className="todo-card__row">
-                                <span>Completed</span>
-                                <strong>
-                                  {formatLocalDateTime(task.completedAt)}
-                                </strong>
-                              </p>
-                            ) : null}
-                            <div className="todo-task__actions">
-                              <button
-                                type="button"
-                                className="ops-btn ops-btn--secondary"
-                                disabled={busy || mutationsBlocked}
-                                onClick={() => {
-                                  void handleRestore(task.id);
-                                }}
-                              >
-                                {busy ? 'Restoring...' : 'Restore'}
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )
-                ) : null}
-              </section>
-            </>
+              <PersonSection
+                sectionKey={UNASSIGNED_KEY}
+                title="Unassigned"
+                subtitle="Tasks not assigned to anyone."
+                activeTasks={unassignedActive}
+                completedTasks={unassignedCompleted}
+                employees={employees}
+                expanded={Boolean(expandedCompletedGroups[UNASSIGNED_KEY])}
+                onToggleCompleted={() => toggleCompletedGroup(UNASSIGNED_KEY)}
+                mutatingTaskIds={mutatingTaskIds}
+                mutationsBlocked={mutationsBlocked}
+                onEdit={(task) =>
+                  setTaskModal({ open: true, mode: 'edit', task })
+                }
+                onComplete={(taskId) => {
+                  void handleComplete(taskId);
+                }}
+                onRestore={(taskId) => {
+                  void handleRestore(taskId);
+                }}
+              />
+            </section>
           ) : null}
         </div>
       </main>

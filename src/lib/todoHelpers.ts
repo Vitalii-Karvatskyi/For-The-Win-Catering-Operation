@@ -57,13 +57,16 @@ export function deadlineStatus(
 
 export function activeTaskStatusLabel(
   deadlineDate: string | undefined,
-): 'Overdue' | 'Due Today' | 'Active' {
+): 'Overdue' | 'Due Today' | 'Upcoming' | 'Active' {
   const status = deadlineStatus(deadlineDate);
   if (status === 'overdue') {
     return 'Overdue';
   }
   if (status === 'today') {
     return 'Due Today';
+  }
+  if (status === 'upcoming') {
+    return 'Upcoming';
   }
   return 'Active';
 }
