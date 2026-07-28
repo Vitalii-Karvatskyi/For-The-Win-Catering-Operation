@@ -1,26 +1,40 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
-import type { TodoEmployee, TodoTask } from '../../types/todo';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
+import type {
+  TodoEmployee,
+  TodoTask,
+  TodoTaskFormValues,
+} from '../../types/todo';
+
+const DEPARTMENT_SUGGESTIONS = [
+  'Financial',
+  'Marketing',
+  'Account Management',
+  'Business Development',
+  'Opps',
+  'Brentwood',
+  'Cypress Park',
+  'Alhambra',
+  'Hollywood',
+  'Fleet / Warehouse / General',
+];
 
 type TaskFormModalProps = {
   open: boolean;
   mode: 'create' | 'edit';
   employees: TodoEmployee[];
+  departmentOptions: string[];
   task: TodoTask | null;
   busy: boolean;
   error: string | null;
   onClose: () => void;
-  onSave: (values: {
-    title: string;
-    description: string;
-    assigneeIds: string[];
-    deadlineDate: string;
-  }) => Promise<void>;
+  onSave: (values: TodoTaskFormValues) => Promise<void>;
 };
 
 export function TaskFormModal({
   open,
   mode,
   employees,
+  departmentOptions,
   task,
   busy,
   error,
@@ -28,8 +42,13 @@ export function TaskFormModal({
   onSave,
 }: TaskFormModalProps) {
   const titleId = useId();
+  const datalistId = useId();
   const [title, setTitle] = useState('');
+  const [department, setDepartment] = useState('');
   const [description, setDescription] = useState('');
+  const [amountOrDueDate, setAmountOrDueDate] = useState('');
+  const [involvement, setInvolvement] = useState('');
+  const [notes, setNotes] = useState('');
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [deadlineDate, setDeadlineDate] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -40,12 +59,20 @@ export function TaskFormModal({
     }
     if (mode === 'edit' && task) {
       setTitle(task.title);
+      setDepartment(task.department ?? '');
       setDescription(task.description ?? '');
+      setAmountOrDueDate(task.amountOrDueDate ?? '');
+      setInvolvement(task.involvement ?? '');
+      setNotes(task.notes ?? '');
       setAssigneeIds([...task.assigneeIds]);
       setDeadlineDate(task.deadlineDate ?? '');
     } else {
       setTitle('');
+      setDepartment('');
       setDescription('');
+      setAmountOrDueDate('');
+      setInvolvement('');
+      setNotes('');
       setAssigneeIds([]);
       setDeadlineDate('');
     }
@@ -56,6 +83,14 @@ export function TaskFormModal({
       document.body.style.overflow = previousOverflow;
     };
   }, [open, mode, task]);
+
+  const suggestions = useMemo(() => {
+    const merged = new Set<string>([
+      ...DEPARTMENT_SUGGESTIONS,
+      ...departmentOptions,
+    ]);
+    return [...merged].sort((a, b) => a.localeCompare(b));
+  }, [departmentOptions]);
 
   if (!open) {
     return null;
@@ -69,8 +104,23 @@ export function TaskFormModal({
     );
   }
 
+  function clearForm() {
+    setTitle('');
+    setDepartment('');
+    setDescription('');
+    setAmountOrDueDate('');
+    setInvolvement('');
+    setNotes('');
+    setAssigneeIds([]);
+    setDeadlineDate('');
+    setLocalError(null);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) {
+      return;
+    }
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       setLocalError('Task Name is required.');
@@ -80,17 +130,23 @@ export function TaskFormModal({
     try {
       await onSave({
         title: trimmedTitle,
+        department: department.trim(),
         description: description.trim(),
+        amountOrDueDate: amountOrDueDate.trim(),
+        involvement: involvement.trim(),
+        notes: notes.trim(),
         assigneeIds,
         deadlineDate: deadlineDate.trim(),
       });
+      clearForm();
     } catch {
-      // Parent keeps modal open.
+      // Parent keeps modal open and preserves form values.
     }
   }
 
   const displayError = localError ?? error;
   const heading = mode === 'edit' ? 'Edit Task' : 'Add Task';
+  const canSave = title.trim().length > 0 && !busy;
 
   return (
     <div className="ops-modal" role="presentation">
@@ -146,20 +202,61 @@ export function TaskFormModal({
             </div>
 
             <div className="ops-field ops-field--full">
+              <label htmlFor="todo-task-department">Department</label>
+              <input
+                id="todo-task-department"
+                type="text"
+                list={datalistId}
+                value={department}
+                disabled={busy}
+                onChange={(event) => setDepartment(event.target.value)}
+              />
+              <datalist id={datalistId}>
+                {suggestions.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+            </div>
+
+            <div className="ops-field ops-field--full">
               <label htmlFor="todo-task-description">Description</label>
               <textarea
                 id="todo-task-description"
-                rows={4}
+                rows={3}
                 value={description}
                 disabled={busy}
                 onChange={(event) => setDescription(event.target.value)}
               />
             </div>
 
+            <div className="ops-field ops-field--full">
+              <label htmlFor="todo-task-amount">Amount / Due Date</label>
+              <input
+                id="todo-task-amount"
+                type="text"
+                value={amountOrDueDate}
+                disabled={busy}
+                onChange={(event) => setAmountOrDueDate(event.target.value)}
+              />
+            </div>
+
+            <div className="ops-field ops-field--full">
+              <label htmlFor="todo-task-involvement">Involvement</label>
+              <textarea
+                id="todo-task-involvement"
+                rows={2}
+                value={involvement}
+                disabled={busy}
+                onChange={(event) => setInvolvement(event.target.value)}
+              />
+            </div>
+
             <fieldset className="todo-assignees">
               <legend>Assign To</legend>
               {employees.length === 0 ? (
-                <p className="todo-empty">No people yet. Tasks can stay unassigned.</p>
+                <p className="todo-empty">
+                  No people yet. Tasks can stay unassigned.
+                </p>
               ) : (
                 <ul className="todo-assignees__list">
                   {employees.map((employee) => {
@@ -204,6 +301,17 @@ export function TaskFormModal({
               />
             </div>
 
+            <div className="ops-field ops-field--full">
+              <label htmlFor="todo-task-notes">Notes</label>
+              <textarea
+                id="todo-task-notes"
+                rows={3}
+                value={notes}
+                disabled={busy}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </div>
+
             {displayError ? (
               <p className="ops-field__error" role="alert">
                 {displayError}
@@ -223,7 +331,7 @@ export function TaskFormModal({
             <button
               type="submit"
               className="ops-btn ops-btn--primary"
-              disabled={busy}
+              disabled={!canSave}
             >
               {busy ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Save Task'}
             </button>

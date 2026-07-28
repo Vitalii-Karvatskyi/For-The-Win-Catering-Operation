@@ -43,7 +43,7 @@ export function deadlineStatus(
   deadlineDate: string | undefined,
   todayYmd = localDateYmd(),
 ): 'overdue' | 'today' | 'upcoming' | 'none' {
-  if (!deadlineDate) {
+  if (!deadlineDate || !/^\d{4}-\d{2}-\d{2}$/.test(deadlineDate)) {
     return 'none';
   }
   if (deadlineDate < todayYmd) {
@@ -53,6 +53,19 @@ export function deadlineStatus(
     return 'today';
   }
   return 'upcoming';
+}
+
+export function activeTaskStatusLabel(
+  deadlineDate: string | undefined,
+): 'Overdue' | 'Due Today' | 'Active' {
+  const status = deadlineStatus(deadlineDate);
+  if (status === 'overdue') {
+    return 'Overdue';
+  }
+  if (status === 'today') {
+    return 'Due Today';
+  }
+  return 'Active';
 }
 
 function createdAtMs(value: string): number {

@@ -7,13 +7,28 @@ export type TodoEmployee = {
 export type TodoTask = {
   id: string;
   title: string;
+  department?: string;
   description?: string;
+  amountOrDueDate?: string;
+  involvement?: string;
+  notes?: string;
   assigneeIds: string[];
   createdAt: string;
   updatedAt: string;
   deadlineDate?: string;
   completed: boolean;
   completedAt?: string | null;
+};
+
+export type TodoTaskFormValues = {
+  title: string;
+  department: string;
+  description: string;
+  amountOrDueDate: string;
+  involvement: string;
+  notes: string;
+  assigneeIds: string[];
+  deadlineDate: string;
 };
 
 export type EncryptedEnvelope = {
