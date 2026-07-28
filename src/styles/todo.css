@@ -143,6 +143,37 @@
   z-index: 10050;
 }
 
+.todo-form-modal .ops-modal__form {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.todo-form-modal .ops-modal__body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.todo-task-form-dialog {
+  width: min(100%, 680px);
+}
+
+.todo-task-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.todo-task-form-grid > * {
+  min-width: 0;
+}
+
+.todo-task-form-grid .ops-field input,
+.todo-task-form-grid .ops-field textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .todo-section {
   margin-block: 1.25rem 1.75rem;
 }
@@ -484,23 +515,61 @@
 }
 
 .todo-assignees {
-  margin: 0 0 0.75rem;
-  padding: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.9rem;
   border: 1px solid #d6d6d6;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.todo-assignees legend {
+  padding: 0 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #707070;
 }
 
 .todo-assignees__list {
   list-style: none;
-  margin: 0.5rem 0;
+  margin: 0.6rem 0 0;
   padding: 0;
   display: grid;
-  gap: 0.35rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.45rem;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .todo-assignees__item {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #e2e2e2;
+  background: #f8f8f8;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.todo-assignees__item input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  margin: 0;
+  max-width: 1rem;
+  padding: 0;
+  appearance: auto;
+  -webkit-appearance: checkbox;
+}
+
+.todo-assignees__item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .todo-assignees__selected {
@@ -529,6 +598,30 @@
 
   .todo-task-card__actions .ops-btn {
     flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .todo-task-form-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .todo-task-form-grid {
+    gap: 0.85rem;
+  }
+
+  .todo-assignees__list {
+    grid-template-columns: 1fr;
+    max-height: 180px;
+  }
+
+  .todo-form-modal .ops-modal__footer {
+    flex-direction: column;
+  }
+
+  .todo-form-modal .ops-modal__footer .ops-btn {
+    width: 100%;
   }
 }
 

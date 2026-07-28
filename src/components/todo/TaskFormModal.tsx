@@ -152,7 +152,7 @@ export function TaskFormModal({
         }}
       />
       <div
-        className="ops-modal__dialog ops-modal__dialog--wide"
+        className="ops-modal__dialog todo-task-form-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -178,114 +178,116 @@ export function TaskFormModal({
           noValidate
         >
           <div className="ops-modal__body">
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-title">Task Name</label>
-              <input
-                id="todo-task-title"
-                type="text"
-                value={title}
-                disabled={busy}
-                onChange={(event) => {
-                  setTitle(event.target.value);
-                  setLocalError(null);
-                }}
-              />
-            </div>
+            <div className="todo-task-form-grid">
+              <div className="ops-field ops-field--full">
+                <label htmlFor="todo-task-title">Task Name</label>
+                <input
+                  id="todo-task-title"
+                  type="text"
+                  value={title}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setLocalError(null);
+                  }}
+                />
+              </div>
 
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-department">Department</label>
-              <input
-                id="todo-task-department"
-                type="text"
-                list={datalistId}
-                value={department}
-                disabled={busy}
-                onChange={(event) => setDepartment(event.target.value)}
-              />
-              <datalist id={datalistId}>
-                {suggestions.map((value) => (
-                  <option key={value} value={value} />
-                ))}
-              </datalist>
-            </div>
+              <div className="ops-field ops-field--full">
+                <label htmlFor="todo-task-department">Department</label>
+                <input
+                  id="todo-task-department"
+                  type="text"
+                  list={datalistId}
+                  value={department}
+                  disabled={busy}
+                  onChange={(event) => setDepartment(event.target.value)}
+                />
+                <datalist id={datalistId}>
+                  {suggestions.map((value) => (
+                    <option key={value} value={value} />
+                  ))}
+                </datalist>
+              </div>
 
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-description">Description</label>
-              <textarea
-                id="todo-task-description"
-                rows={3}
-                value={description}
-                disabled={busy}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </div>
+              <div className="ops-field ops-field--full">
+                <label htmlFor="todo-task-description">Description</label>
+                <textarea
+                  id="todo-task-description"
+                  rows={3}
+                  value={description}
+                  disabled={busy}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </div>
 
-            <fieldset className="todo-assignees">
-              <legend>Assign To</legend>
-              {employees.length === 0 ? (
-                <p className="todo-empty">
-                  No people yet. Tasks can stay unassigned.
+              <fieldset className="todo-assignees">
+                <legend>Assign To</legend>
+                {employees.length === 0 ? (
+                  <p className="todo-empty">
+                    No people yet. Tasks can stay unassigned.
+                  </p>
+                ) : (
+                  <ul className="todo-assignees__list">
+                    {employees.map((employee) => {
+                      const checked = assigneeIds.includes(employee.id);
+                      return (
+                        <li key={employee.id}>
+                          <label className="todo-assignees__item">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={busy}
+                              onChange={() => toggleAssignee(employee.id)}
+                            />
+                            <span>{employee.name}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {assigneeIds.length > 0 ? (
+                  <p className="todo-assignees__selected">
+                    Selected:{' '}
+                    {employees
+                      .filter((employee) => assigneeIds.includes(employee.id))
+                      .map((employee) => employee.name)
+                      .join(', ')}
+                  </p>
+                ) : (
+                  <p className="todo-assignees__selected">Unassigned</p>
+                )}
+              </fieldset>
+
+              <div className="ops-field ops-field--full">
+                <label htmlFor="todo-task-deadline">Deadline</label>
+                <input
+                  id="todo-task-deadline"
+                  type="date"
+                  value={deadlineDate}
+                  disabled={busy}
+                  onChange={(event) => setDeadlineDate(event.target.value)}
+                />
+              </div>
+
+              <div className="ops-field ops-field--full">
+                <label htmlFor="todo-task-notes">Notes</label>
+                <textarea
+                  id="todo-task-notes"
+                  rows={3}
+                  value={notes}
+                  disabled={busy}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </div>
+
+              {displayError ? (
+                <p className="ops-field__error" role="alert">
+                  {displayError}
                 </p>
-              ) : (
-                <ul className="todo-assignees__list">
-                  {employees.map((employee) => {
-                    const checked = assigneeIds.includes(employee.id);
-                    return (
-                      <li key={employee.id}>
-                        <label className="todo-assignees__item">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={busy}
-                            onChange={() => toggleAssignee(employee.id)}
-                          />
-                          <span>{employee.name}</span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {assigneeIds.length > 0 ? (
-                <p className="todo-assignees__selected">
-                  Selected:{' '}
-                  {employees
-                    .filter((employee) => assigneeIds.includes(employee.id))
-                    .map((employee) => employee.name)
-                    .join(', ')}
-                </p>
-              ) : (
-                <p className="todo-assignees__selected">Unassigned</p>
-              )}
-            </fieldset>
-
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-deadline">Deadline</label>
-              <input
-                id="todo-task-deadline"
-                type="date"
-                value={deadlineDate}
-                disabled={busy}
-                onChange={(event) => setDeadlineDate(event.target.value)}
-              />
+              ) : null}
             </div>
-
-            <div className="ops-field ops-field--full">
-              <label htmlFor="todo-task-notes">Notes</label>
-              <textarea
-                id="todo-task-notes"
-                rows={3}
-                value={notes}
-                disabled={busy}
-                onChange={(event) => setNotes(event.target.value)}
-              />
-            </div>
-
-            {displayError ? (
-              <p className="ops-field__error" role="alert">
-                {displayError}
-              </p>
-            ) : null}
           </div>
 
           <div className="ops-modal__footer">
