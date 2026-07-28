@@ -1,4 +1,7 @@
 {
   "version": 1,
-  "initialized": false
+  "initialized": true,
+  "algorithm": "AES-GCM",
+  "iv": "GRVGkiK8VsOc/jdI",
+  "ciphertext": "J4RF6YGWq0MpMpa/HRG+fuJ0"
 }
