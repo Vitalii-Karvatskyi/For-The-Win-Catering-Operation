@@ -699,5 +699,218 @@
     ],
     "preparationTasks": [],
     "documents": []
+  },
+  {
+    "id": "evt-e3358a2a-c021-48f6-8599-c6ed06001816",
+    "eventName": "Common Ground Media",
+    "eventDate": "2026-07-31",
+    "setupTime": "17:30",
+    "serviceStartTime": "18:30",
+    "serviceEndTime": "20:30",
+    "address": "5100 Collett Avenue Encino, CA 91436",
+    "guestCount": 50,
+    "status": "planning",
+    "assignedEmployees": [],
+    "menuOrder": {
+      "cheeseburger": 100,
+      "doubleCheeseburger": 0,
+      "veggieBurger": 20,
+      "fries": 100,
+      "openItems": [
+        {
+          "id": "open-8151ae5b-befe-4ec6-8317-25acd7b7cd38",
+          "name": "Grilled Cheese",
+          "quantity": 20
+        },
+        {
+          "id": "open-1bd06aaa-1146-4472-bea6-cc0e266c0a65",
+          "name": "LETTUCE/TOMATO/JALAPENO",
+          "quantity": 20
+        },
+        {
+          "id": "open-c1255965-dcfe-42cb-947e-95dafab58f56",
+          "name": "GF Bun",
+          "quantity": 20
+        }
+      ]
+    },
+    "products": [
+      {
+        "id": "prod-ebfe6d37-3b54-4590-a5f5-2ce4aefdbcb1",
+        "name": "Salt",
+        "quantity": 1
+      },
+      {
+        "id": "prod-dc43fd56-bdf7-4af7-9812-55e371f250ac",
+        "name": "Salt & pepper",
+        "quantity": 1
+      },
+      {
+        "id": "prod-29882e6a-2f6f-4901-bf56-72ea6eeda78a",
+        "name": "Beef tallow",
+        "quantity": 1
+      },
+      {
+        "id": "prod-6d77c4ba-c0f4-4429-a0a9-2b268cf419d8",
+        "name": "Pickles",
+        "quantity": 1
+      },
+      {
+        "id": "prod-d0322b38-19a1-443b-a5ef-0af2f5aab6ef",
+        "name": "Mustard",
+        "quantity": 1
+      },
+      {
+        "id": "prod-d2b7d2c3-3dd3-496b-9c7f-596fd4f0e96b",
+        "name": "Ketchup",
+        "quantity": 1
+      }
+    ],
+    "equipment": [
+      {
+        "id": "eq-187558b7-46c7-4203-9ac3-35c917820095",
+        "name": "Fry baskets",
+        "quantity": 1
+      },
+      {
+        "id": "eq-76e8c948-18d8-457d-b146-28bd5e06fdac",
+        "name": "Lighter",
+        "quantity": 1
+      },
+      {
+        "id": "eq-d94adca5-6cd2-43b5-9c22-b239624f7264",
+        "name": "Stapler",
+        "quantity": 1
+      },
+      {
+        "id": "eq-e1ce4774-a404-48d9-af27-3766fa7519cb",
+        "name": "Trash can",
+        "quantity": 1
+      },
+      {
+        "id": "eq-e905c388-60a0-439e-9094-3e9bd2cb897c",
+        "name": "Bag with pagers, cash register, and printer",
+        "quantity": 1
+      },
+      {
+        "id": "eq-43dd6313-b54e-443e-bb62-e537c5da63d3",
+        "name": "Tent / canopy",
+        "quantity": 1
+      },
+      {
+        "id": "eq-7630820c-f9e4-486f-82ac-28a15ecdb7b3",
+        "name": "Tables",
+        "quantity": 1
+      },
+      {
+        "id": "eq-2e0df620-f32d-4963-8708-f2230185462b",
+        "name": "Ticket line / order tickets",
+        "quantity": 1
+      },
+      {
+        "id": "eq-1331e0c2-21cc-40f0-913a-331f17b407d2",
+        "name": "Fryer",
+        "quantity": 1
+      },
+      {
+        "id": "eq-813ced67-16f4-4094-8aa4-d24a94844d38",
+        "name": "Grills",
+        "quantity": 1
+      },
+      {
+        "id": "eq-e673f7e8-1a82-4544-b0d9-57398b9c013a",
+        "name": "Receipt paper rolls",
+        "quantity": 1
+      },
+      {
+        "id": "eq-7050c428-6cbb-4d41-8c4a-6c47fbfed8f4",
+        "name": "Gloves",
+        "quantity": 1
+      },
+      {
+        "id": "eq-aca962be-78d0-4866-9809-36ab31eae4c9",
+        "name": "Bottle for water",
+        "quantity": 1
+      },
+      {
+        "id": "eq-71186270-2f4d-49a3-9641-321815a6c87d",
+        "name": "Gas tanks",
+        "quantity": 2,
+        "isAuto": true
+      },
+      {
+        "id": "eq-053373e9-f9cb-48da-a2dc-7717e52da881",
+        "name": "Tablecloths",
+        "quantity": 1,
+        "isAuto": true
+      },
+      {
+        "id": "eq-00870dfb-c87f-4e30-80fa-e7d6b0a12e66",
+        "name": "Poster menu",
+        "quantity": 1
+      },
+      {
+        "id": "eq-6e7f1624-02a2-4b6a-818d-fdd5d751f1e4",
+        "name": "Towels",
+        "quantity": 1
+      },
+      {
+        "id": "eq-8b0c6b60-95e9-464a-a918-f330c279f99c",
+        "name": "Trash bags",
+        "quantity": 1
+      },
+      {
+        "id": "eq-8438c7b2-b8df-463b-ade8-f970b485b94c",
+        "name": "Container for tools",
+        "quantity": 1
+      },
+      {
+        "id": "eq-4f1f2120-acb3-4117-aac5-23a4a7947ef1",
+        "name": "Container for beef tallow",
+        "quantity": 1
+      },
+      {
+        "id": "eq-66dc0a59-b6f1-451c-a7a5-6e4b5a23f88f",
+        "name": "Large grill scraper with blade",
+        "quantity": 1
+      },
+      {
+        "id": "eq-24e82459-26b9-4d8e-bb52-0c62ae5f2815",
+        "name": "Black spatula for flipping patties",
+        "quantity": 1
+      },
+      {
+        "id": "eq-31a7348f-0f81-48f8-b48a-17d569cb7f93",
+        "name": "Rectangular container for fries",
+        "quantity": 1
+      },
+      {
+        "id": "eq-56a13667-b241-4bff-b192-f5692d74609c",
+        "name": "Smasher",
+        "quantity": 1
+      },
+      {
+        "id": "eq-926b6bc5-88d9-48ed-a2b4-8d046decb7f0",
+        "name": "Spatulas",
+        "quantity": 3
+      },
+      {
+        "id": "eq-53a8b41b-0580-480c-a1e5-df6b071c2dec",
+        "name": "Salt shakers",
+        "quantity": 2
+      },
+      {
+        "id": "eq-5032b03f-9250-4895-afa6-129e9e3d3aa1",
+        "name": "Containers for napkins, sauces, and other items",
+        "quantity": 1
+      },
+      {
+        "id": "eq-17efd55f-9178-4166-ad2a-79e282f98fc9",
+        "name": "Plate for salting fries",
+        "quantity": 1
+      }
+    ],
+    "preparationTasks": [],
+    "documents": []
   }
 ]
